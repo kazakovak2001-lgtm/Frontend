@@ -94,7 +94,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    void logout();
     navigate({ to: "/" });
   };
 
