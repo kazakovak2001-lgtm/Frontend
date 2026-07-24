@@ -90,7 +90,7 @@ export function WorkspaceWorkflowRail({
               aria-current={selected ? "step" : undefined}
               onClick={() => onStageChange(stage.id)}
               className={cn(
-                "h-auto min-h-24 min-w-0 justify-start overflow-hidden whitespace-normal rounded-xl border p-3 text-left",
+                "h-auto min-h-24 min-w-0 justify-start overflow-hidden whitespace-normal rounded-xl border p-3 text-left md:min-h-20 xl:min-h-24",
                 selected
                   ? "border-primary/50 bg-primary/10 shadow-sm"
                   : "border-border/60 bg-card/40 hover:bg-card/70",
@@ -114,7 +114,7 @@ export function WorkspaceWorkflowRail({
                     </span>
                     <StageStatusBadge status={status} />
                   </span>
-                  <span className="mt-1 block whitespace-normal break-words text-xs font-normal leading-relaxed text-muted-foreground">
+                  <span className="mt-1 block whitespace-normal break-words text-xs font-normal leading-relaxed text-muted-foreground md:hidden xl:block">
                     {stage.description}
                   </span>
                 </span>
