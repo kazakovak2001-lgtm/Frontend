@@ -54,7 +54,7 @@ function LoginPage() {
     }
     setLoading(true);
     try {
-      await login(email);
+      await login(email, password);
       toast.success("Welcome back!");
       navigate({ to: "/dashboard" });
     } finally {
