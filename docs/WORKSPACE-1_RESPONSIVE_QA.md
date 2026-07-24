@@ -21,7 +21,7 @@ An isolated mock backend implements only the existing contracts required by the 
 - Roblox Studio status;
 - registered agents and system status.
 
-No application API, store, dependency, package-lock, backend, or deployment contract is duplicated or changed by the QA harness.
+The QA harness introduces no new application API, store, runtime dependency, package-lock entry, backend service, or deployment contract.
 
 ## Viewport Evidence
 
