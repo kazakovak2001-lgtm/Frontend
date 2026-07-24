@@ -75,8 +75,8 @@ export function WorkspaceWorkflowRail({
   onStageChange: (stage: WorkspaceStage) => void;
 }) {
   return (
-    <nav aria-label="Project workflow" className="mb-6">
-      <div className="grid gap-2 md:grid-cols-5">
+    <nav aria-label="Project workflow" className="mb-6 min-w-0">
+      <div className="grid min-w-0 gap-2 md:grid-cols-5">
         {STAGES.map((stage, index) => {
           const Icon = stage.icon;
           const status = statuses[stage.id] ?? "idle";
@@ -90,13 +90,13 @@ export function WorkspaceWorkflowRail({
               aria-current={selected ? "step" : undefined}
               onClick={() => onStageChange(stage.id)}
               className={cn(
-                "h-auto min-h-24 justify-start rounded-xl border p-3 text-left",
+                "h-auto min-h-24 min-w-0 justify-start overflow-hidden whitespace-normal rounded-xl border p-3 text-left md:min-h-20 xl:min-h-24",
                 selected
                   ? "border-primary/50 bg-primary/10 shadow-sm"
                   : "border-border/60 bg-card/40 hover:bg-card/70",
               )}
             >
-              <span className="flex w-full items-start gap-3">
+              <span className="flex min-w-0 w-full items-start gap-2.5">
                 <span
                   className={cn(
                     "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
@@ -107,14 +107,14 @@ export function WorkspaceWorkflowRail({
                 >
                   <Icon className="h-4 w-4" />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-medium">
+                <span className="min-w-0 flex-1 overflow-hidden">
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 font-medium">
                       {index + 1}. {stage.label}
                     </span>
                     <StageStatusBadge status={status} />
                   </span>
-                  <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
+                  <span className="mt-1 block whitespace-normal break-words text-xs font-normal leading-relaxed text-muted-foreground md:hidden xl:block">
                     {stage.description}
                   </span>
                 </span>
@@ -141,7 +141,7 @@ function StageStatusBadge({ status }: { status: WorkspaceStageStatus }) {
     <Badge
       variant="outline"
       className={cn(
-        "h-5 px-1.5 text-[10px] font-medium",
+        "h-5 shrink-0 px-1.5 text-[10px] font-medium",
         status === "active" && "border-primary/40 text-primary",
         status === "ready" && "border-success/40 text-success",
         status === "blocked" && "border-warning/40 text-warning",
