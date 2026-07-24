@@ -2,7 +2,7 @@
 
 **Repository:** `kazakovak2001-lgtm/Frontend`
 
-**Status:** Implemented; CI validation pending
+**Status:** Implemented and CI-verified
 
 ## Objective
 
@@ -54,11 +54,17 @@ The rail derives all information from the existing project, Workspace read model
 - stage search deep links remain unchanged;
 - STUDIO-1 remains responsible for generated-artifact delivery proof.
 
-## Validation Gate
+## Validation
+
+Frontend CI passed:
 
 - TypeScript check;
 - production build;
-- every stage renders only its assigned tool groups;
-- no duplicate Studio card or backend operation;
-- context rail remains non-blocking below desktop width;
-- route orchestration remains behaviorally unchanged.
+- typed stage-canvas and context-rail contracts;
+- TanStack Router generation after route extraction;
+- explicit stage-scoped tool rendering;
+- preserved generation, mutation, export, Studio, chat, history, and navigation contracts.
+
+## Next Slice
+
+Add focused component and workflow-logic tests, then perform responsive visual verification before closing WORKSPACE-1.
