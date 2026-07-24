@@ -1,61 +1,83 @@
 # Frontend ↔ Backend integration status
 
-## Current architecture
+## Architecture
 
-The Frontend project is the presentation layer. The RobloxAiStudio-DevKit project remains the source of truth for:
+The Frontend repository is the presentation layer. `RobloxAIStudio2` remains the source of truth for authentication, projects, AI execution, generation, diagnostics, persistence and Roblox Studio integration.
 
-- authentication and sessions,
-- project persistence,
-- AI providers and agent execution,
-- generation and pipeline state,
-- chat persistence,
-- knowledge and controller checks,
-- analytics, simulation and economy,
-- Roblox Studio bridge and synchronization.
+All browser calls pass through `src/services/backendApi.ts`. It normalizes API envelopes and project/user models, includes httpOnly cookie credentials, performs one refresh-and-retry on expired sessions and exposes typed operations to contexts and screens. Socket.IO is isolated in `src/services/realtime.ts` and consumed through `WorkspaceContext` plus `useProjectRealtime`.
 
-The frontend now communicates through one typed boundary:
+## Screen and control map
 
-    src/services/backendApi.ts
+| Screen                                    | Connected behavior                                                                              |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `/login`, `/register`, `/forgot-password` | Cookie login, registration, non-enumerating reset request and validation/error states           |
+| `/dashboard`                              | Authenticated project totals, recent projects, live generation state and navigation             |
+| `/projects`                               | Backend list, search/filter, open, duplicate and confirmed delete                               |
+| `/projects/new`                           | Validated project creation; generation is queued until the workspace joins its realtime room    |
+| `/projects/:projectId`                    | Unified overview, modules, manifest, persistent AI chat, agents, live logs, settings and export |
+| `/agents`                                 | Backend agent registry/status with refresh and error states                                     |
+| `/settings`                               | Profile PATCH, persisted preferences, theme and explicit external-service availability states   |
+| App shell                                 | Auth guard, project/agent search, project-aware notifications, account menu and logout          |
 
-This prevents individual pages from inventing their own fetch logic or response mapping.
+Every active button is either a submit control, link, dialog/menu trigger or has an async handler with loading/error feedback. Unsupported billing and API-key management are shown as unavailable capabilities instead of fake actions.
 
-## Connected flows
+## Workspace module map
 
-| Frontend capability | Backend endpoint group | Status |
-|---|---|---|
-| Login | /api/platform/auth/login | connected |
-| Registration | /api/platform/auth/register | connected |
-| Session restore | /api/platform/auth/me | connected |
-| Logout | /api/platform/auth/logout | connected |
-| Project list | /api/projects | connected |
-| Project detail data | /api/projects/:id | client available |
-| Project create/update/delete | /api/projects | connected in ProjectsContext |
-| Start generation | /api/projects/:projectId/generate | connected after project creation |
-| AI chat | /api/ai/chat | connected |
-| Chat history | /api/chat/:projectId/history | connected to project chat |
-| Agents | /api/system/agents | client available |
-| System status | /api/system/status | client available |
-| Analytics | /api/analytics/* | client available |
-| Knowledge | /api/knowledge/* | client available |
-| Simulation | /api/simulate/game | client available |
-| Economy | /api/economy/analyze | client available |
-| Studio status and sync | /api/studio/* and project Studio routes | client available |
-| AI Controller | /api/controller/* | client available |
+| Workspace capability                       | Backend contract                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| Project generation/status/history/export   | `/api/projects/*`                                                      |
+| Persistent AI chat                         | `/api/ai/chat`, `/api/chat/*`                                          |
+| System and agent status                    | `/api/system/*`                                                        |
+| Analytics                                  | `/api/analytics/*`                                                     |
+| Knowledge                                  | `/api/knowledge/*`                                                     |
+| Simulation and economy                     | `/api/simulate/*`, `/api/economy/*`                                    |
+| Concept, architect and domain intelligence | `/api/concept/*`, `/api/ai/game-architect/*`, `/api/domain/*`          |
+| Planning, DAG and generation core          | `/api/plan/*`, `/api/v2/plan/dag`, `/api/generate/*`                   |
+| Stable compile, Lua and assets             | `/api/v1/compile`, `/api/lua/*`                                        |
+| World and lifecycle                        | `/api/world/*`, `/api/lifecycle/*`                                     |
+| Playtest, repair and agent evaluation      | `/api/playtest/*`, `/api/repair/*`, `/api/evaluation/*`                |
+| Memory and agent collaboration             | `/api/memory/*`, `/api/agents/*`                                       |
+| Autonomous and distributed execution       | `/api/autonomous/*`, `/api/distributed/*`                              |
+| Diagnostics, registry and versions         | `/api/debug/*`, `/api/platform/registry/*`, `/api/platform/versions/*` |
+| AI project controller                      | `/api/controller/*`                                                    |
+| Roblox Studio status and sync              | `/api/projects/:id/studio/*`                                           |
 
-## Important corrections
+Versioned and transport-level endpoints are deliberately not duplicated as separate UI modules. The frontend uses the stable v1 compile contract, v2 only for DAG/status inspection, and project-scoped Studio routes instead of exposing plugin protocol controls to browser users.
 
-- Mock auth was replaced by backend cookie sessions.
-- localStorage project CRUD was replaced by the backend project repository.
-- mock AI replies were replaced by the real AI chat route.
-- new project creation now starts the backend generation flow.
-- the existing misspelled constants directory is kept for compatibility and exposed through the correct constants import path.
+## Realtime contract
 
-## Remaining integration work
+The workspace opens one credentialed Socket.IO connection, joins `project:<projectId>` after route mount and leaves it during cleanup. It accepts only events whose payload contains the active `projectId`.
 
-1. Add the Workspace module pages that consume the already available agents, analytics, knowledge, simulation, economy, Studio and controller methods.
-2. Add Socket.IO client wiring for live pipeline events. The backend already emits project-room events; the new frontend does not yet open a Socket.IO subscription.
-3. Add a shared project/run context so all module pages keep the same projectId and executionId.
-4. Add error, loading and permission states for every module.
-5. Resolve the local Vite/Rolldown native binding issue and run production build.
+Handled events include:
 
-The next implementation slice should be the unified Workspace shell and module registry. It should reuse these API methods instead of creating new service clients.
+- `pipeline.started`, `pipeline.completed`, `pipeline.failed`
+- `generation.started`, `generation.completed`, `generation.failed`
+- `step.started`, `step.completed`, `step.failed`
+- project-scoped agent task, decision and conflict events
+
+The REST `executionId` and realtime `pipelineId` are the same identifier. REST polling remains a fallback when Socket.IO is temporarily unavailable.
+
+## Runtime configuration
+
+```env
+VITE_API_URL=https://api.example.com/api
+VITE_SOCKET_URL=https://api.example.com
+```
+
+If `VITE_SOCKET_URL` is omitted, the Socket.IO origin is derived from `VITE_API_URL`. Production must use HTTPS and configure the backend `FRONTEND_URL`. A same-site deployment or reverse proxy is recommended for cookie sessions.
+
+## Verification
+
+```bash
+npm run test:e2e:integration
+npm run build
+```
+
+The integration suite currently contains 40 checks. It covers authenticated REST and Socket.IO behavior, all user-facing module groups, full project lifecycle, persistent chat, guarded Studio sync, cross-user project isolation, export, settings, deletion, logout and login restoration. TypeScript and production build are also required before merge.
+
+## External runtime dependencies
+
+- Real model output requires at least one configured LLM provider key; without it, the backend intentionally reports stub mode.
+- Password-reset email delivery requires an email provider. The public request contract is already connected and does not reveal account existence.
+- Studio synchronization requires a live Roblox Studio plugin session. The browser reports `disconnected` and rejects sync honestly when no bridge is connected.
+- Durable multi-instance production data requires the configured PostgreSQL storage provider; the default in-memory provider is suitable for local development and tests.

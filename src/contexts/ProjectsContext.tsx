@@ -1,6 +1,14 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Project } from "@/types";
 import { backendApi } from "@/services/backendApi";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type NewProjectInput = Omit<
   Project,
@@ -15,6 +23,7 @@ interface ProjectsContextValue {
   updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   duplicateProject: (id: string) => Promise<void>;
+  refreshProjects: () => Promise<void>;
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | null>(null);
@@ -22,17 +31,29 @@ const ProjectsContext = createContext<ProjectsContextValue | null>(null);
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  const refreshProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      setProjects(await backendApi.projects.list());
+    } catch (error) {
+      console.warn("[projects] backend load failed", error);
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    backendApi.projects
-      .list()
-      .then(setProjects)
-      .catch((error) => {
-        console.warn("[projects] backend load failed", error);
-        setProjects([]);
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setProjects([]);
+      setIsLoading(false);
+      return;
+    }
+    void refreshProjects();
+  }, [authLoading, isAuthenticated, refreshProjects]);
 
   const createProject = async (input: NewProjectInput) => {
     const project = await backendApi.projects.create({
@@ -50,7 +71,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
 
   const updateProject = async (id: string, patch: Partial<Project>) => {
     const project = await backendApi.projects.update(id, patch);
-    setProjects((current) => current.map((item) => (item.id === id ? project : item)));
+    setProjects((current) =>
+      current.map((item) => (item.id === id ? project : item)),
+    );
   };
 
   const deleteProject = async (id: string) => {
@@ -72,7 +95,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const getProject = (id: string) => projects.find((project) => project.id === id);
+  const getProject = (id: string) =>
+    projects.find((project) => project.id === id);
 
   return (
     <ProjectsContext.Provider
@@ -84,6 +108,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         updateProject,
         deleteProject,
         duplicateProject,
+        refreshProjects,
       }}
     >
       {children}

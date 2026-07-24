@@ -28,6 +28,7 @@ import { useProjects } from "@/contexts/ProjectsContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import type { ProjectStatus } from "@/types";
+import { PageLoader } from "@/components/PageLoader";
 
 export const Route = createFileRoute("/projects/")({
   head: () => ({ meta: [{ title: "Projects — Roblox AI Studio" }] }),
@@ -43,7 +44,8 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 ];
 
 function ProjectsPage() {
-  const { projects, duplicateProject, deleteProject } = useProjects();
+  const { projects, isLoading, duplicateProject, deleteProject } =
+    useProjects();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -54,7 +56,8 @@ function ProjectsPage() {
       const matchesQuery =
         p.name.toLowerCase().includes(debounced.toLowerCase()) ||
         p.description.toLowerCase().includes(debounced.toLowerCase());
-      const matchesStatus = status === "all" || p.status === (status as ProjectStatus);
+      const matchesStatus =
+        status === "all" || p.status === (status as ProjectStatus);
       return matchesQuery && matchesStatus;
     });
   }, [projects, debounced, status]);
@@ -65,7 +68,10 @@ function ProjectsPage() {
         title="Projects"
         description={`${projects.length} project${projects.length === 1 ? "" : "s"} in your studio`}
         actions={
-          <Button asChild className="bg-gradient-primary text-primary-foreground shadow-glow">
+          <Button
+            asChild
+            className="bg-gradient-primary text-primary-foreground shadow-glow"
+          >
             <Link to="/projects/new">
               <PlusCircle className="mr-1 h-4 w-4" /> New Project
             </Link>
@@ -97,10 +103,14 @@ function ProjectsPage() {
         </Select>
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <PageLoader label="Loading projects…" />
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<FolderPlus className="h-6 w-6" />}
-          title={projects.length === 0 ? "No projects yet" : "No matching projects"}
+          title={
+            projects.length === 0 ? "No projects yet" : "No matching projects"
+          }
           description={
             projects.length === 0
               ? "Create your first project to start building with AI."
@@ -108,7 +118,10 @@ function ProjectsPage() {
           }
           action={
             projects.length === 0 ? (
-              <Button asChild className="bg-gradient-primary text-primary-foreground shadow-glow">
+              <Button
+                asChild
+                className="bg-gradient-primary text-primary-foreground shadow-glow"
+              >
                 <Link to="/projects/new">
                   <PlusCircle className="mr-1 h-4 w-4" /> New Project
                 </Link>
@@ -123,8 +136,15 @@ function ProjectsPage() {
               key={p.id}
               project={p}
               onDuplicate={(id) => {
-                duplicateProject(id);
-                toast.success("Project duplicated.");
+                void duplicateProject(id)
+                  .then(() => toast.success("Project duplicated."))
+                  .catch((error) =>
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "Duplicate failed",
+                    ),
+                  );
               }}
               onDelete={(id) => setPendingDelete(id)}
             />
@@ -132,23 +152,35 @@ function ProjectsPage() {
         </div>
       )}
 
-      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete project?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The project and its generated files will be removed.
+              This action cannot be undone. The project and its generated files
+              will be removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
                 if (pendingDelete) {
-                  deleteProject(pendingDelete);
-                  toast.success("Project deleted.");
-                  setPendingDelete(null);
+                  void deleteProject(pendingDelete)
+                    .then(() => toast.success("Project deleted."))
+                    .catch((error) =>
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : "Delete failed",
+                      ),
+                    )
+                    .finally(() => setPendingDelete(null));
                 }
               }}
             >

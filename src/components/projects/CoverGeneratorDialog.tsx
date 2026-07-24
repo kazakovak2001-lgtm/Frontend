@@ -47,14 +47,24 @@ function randomVariant(seed: number): Variant {
 }
 
 function escapeXml(s: string): string {
-  return s.replace(/[<>&'"]/g, (c) =>
-    ({ "<": "&lt;", ">": "&gt;", "&": "amp;", "'": "&apos;", '"': "&quot;" })[c] as string,
+  return s.replace(
+    /[<>&'"]/g,
+    (c) =>
+      ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        "'": "&apos;",
+        '"': "&quot;",
+      })[c] as string,
   );
 }
 
 function buildCoverSvg(name: string, v: Variant): string {
   const words = name.trim().split(/\s+/);
-  const line1 = escapeXml(words.slice(0, Math.ceil(words.length / 2)).join(" "));
+  const line1 = escapeXml(
+    words.slice(0, Math.ceil(words.length / 2)).join(" "),
+  );
   const line2 = escapeXml(words.slice(Math.ceil(words.length / 2)).join(" "));
   const tagline = escapeXml(v.tagline.toUpperCase());
   const { hue, hue2, shape } = v;
@@ -120,14 +130,25 @@ export function CoverGeneratorDialog({ project, trigger }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(project.name);
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1000));
+  const [saving, setSaving] = useState(false);
 
-  const svg = useMemo(() => buildCoverSvg(name || project.name, randomVariant(seed)), [name, seed, project.name]);
+  const svg = useMemo(
+    () => buildCoverSvg(name || project.name, randomVariant(seed)),
+    [name, seed, project.name],
+  );
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
     const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-    updateProject(project.id, { coverUrl: dataUrl, name });
-    toast.success("Cover saved to project.");
-    setOpen(false);
+    try {
+      await updateProject(project.id, { coverUrl: dataUrl, name });
+      toast.success("Cover saved to project.");
+      setOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Cover save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -143,7 +164,8 @@ export function CoverGeneratorDialog({ project, trigger }: Props) {
         <DialogHeader>
           <DialogTitle>Generate intro cover</DialogTitle>
           <DialogDescription>
-            AI-styled logo &amp; title for your game. Regenerate until it feels right, then save.
+            AI-styled logo &amp; title for your game. Regenerate until it feels
+            right, then save.
           </DialogDescription>
         </DialogHeader>
 
@@ -164,10 +186,17 @@ export function CoverGeneratorDialog({ project, trigger }: Props) {
         </div>
 
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="outline" onClick={() => setSeed(Math.floor(Math.random() * 10000))}>
+          <Button
+            variant="outline"
+            onClick={() => setSeed(Math.floor(Math.random() * 10000))}
+          >
             <RefreshCw className="mr-1.5 h-4 w-4" /> Regenerate
           </Button>
-          <Button onClick={handleSave} className="bg-gradient-primary text-primary-foreground">
+          <Button
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="bg-gradient-primary text-primary-foreground"
+          >
             <Download className="mr-1.5 h-4 w-4" /> Save cover
           </Button>
         </DialogFooter>
