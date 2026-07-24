@@ -7,9 +7,10 @@ import worker from "../../.output/server/index.mjs";
 
 const FRONTEND_PORT = 4173;
 const BACKEND_PORT = 5000;
-const FRONTEND_ORIGIN = `http://127.0.0.1:${FRONTEND_PORT}`;
+const FRONTEND_ORIGIN = `http://localhost:${FRONTEND_PORT}`;
 const ARTIFACT_DIR = "artifacts/workspace-responsive";
 const PROJECT_ID = "qa-project";
+const backendRequests = [];
 
 const now = new Date("2026-07-24T15:00:00.000Z").toISOString();
 const project = {
@@ -183,6 +184,7 @@ try {
       {
         generatedAt: new Date().toISOString(),
         projectId: PROJECT_ID,
+        backendRequests,
         results,
         failure:
           failure instanceof Error
@@ -209,6 +211,7 @@ async function inspectViewport(browserInstance, testCase) {
   const page = await context.newPage();
   const consoleErrors = [];
   const pageErrors = [];
+  let responseStatus;
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -224,97 +227,160 @@ async function inspectViewport(browserInstance, testCase) {
       }),
     );
   });
-  await page.goto(
-    `${FRONTEND_ORIGIN}/projects/${PROJECT_ID}?stage=${testCase.stage}`,
-    { waitUntil: "networkidle", timeout: 60_000 },
-  );
-  await page.getByRole("heading", { name: "QA Adventure Studio" }).waitFor();
-  await page.getByRole("heading", { name: testCase.stageHeading }).waitFor();
-  await page.getByText(testCase.expectedToolHeading, { exact: true }).waitFor();
-  await page.addStyleTag({
-    content: "*,*::before,*::after{animation:none!important;transition:none!important}",
-  });
 
-  const metrics = await page.evaluate(() => {
-    const workflow = document.querySelector('nav[aria-label="Project workflow"]');
-    const contextRail = document.querySelector('aside[aria-label="Workspace context"]');
-    const main = document.querySelector("main");
-    if (!workflow || !contextRail || !main) {
-      throw new Error("Workspace workflow, main canvas, or context rail is missing");
-    }
-    const buttons = [...workflow.querySelectorAll("button")];
-    const buttonRects = buttons.map((button) => button.getBoundingClientRect());
-    const rowPositions = [];
-    for (const rect of buttonRects) {
-      if (!rowPositions.some((value) => Math.abs(value - rect.top) < 3)) {
-        rowPositions.push(rect.top);
+  try {
+    const navigation = await page.goto(
+      `${FRONTEND_ORIGIN}/projects/${PROJECT_ID}?stage=${testCase.stage}`,
+      { waitUntil: "domcontentloaded", timeout: 60_000 },
+    );
+    responseStatus = navigation?.status();
+    await page
+      .getByRole("heading", { name: "QA Adventure Studio" })
+      .waitFor({ timeout: 45_000 });
+    await page.getByRole("heading", { name: testCase.stageHeading }).waitFor();
+    await page.getByText(testCase.expectedToolHeading, { exact: true }).waitFor();
+    await page.addStyleTag({
+      content:
+        "*,*::before,*::after{animation:none!important;transition:none!important}",
+    });
+
+    const metrics = await page.evaluate(() => {
+      const workflow = document.querySelector('nav[aria-label="Project workflow"]');
+      const contextRail = document.querySelector('aside[aria-label="Workspace context"]');
+      const mainElements = [...document.querySelectorAll("main")];
+      const canvas = mainElements.at(-1);
+      if (!workflow || !contextRail || !canvas) {
+        throw new Error("Workspace workflow, canvas, or context rail is missing");
       }
+      const buttons = [...workflow.querySelectorAll("button")];
+      const buttonRects = buttons.map((button) => button.getBoundingClientRect());
+      const rowPositions = [];
+      for (const rect of buttonRects) {
+        if (!rowPositions.some((value) => Math.abs(value - rect.top) < 3)) {
+          rowPositions.push(rect.top);
+        }
+      }
+      const canvasRect = canvas.getBoundingClientRect();
+      const railRect = contextRail.getBoundingClientRect();
+      const workflowRect = workflow.getBoundingClientRect();
+      return {
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        documentScrollWidth: document.documentElement.scrollWidth,
+        bodyScrollWidth: document.body.scrollWidth,
+        horizontalOverflow:
+          document.documentElement.scrollWidth > window.innerWidth + 1 ||
+          document.body.scrollWidth > window.innerWidth + 1,
+        workflowButtonCount: buttons.length,
+        workflowRows: rowPositions.length,
+        workflowWithinViewport:
+          workflowRect.left >= -1 && workflowRect.right <= window.innerWidth + 1,
+        allWorkflowButtonsVisible: buttonRects.every(
+          (rect) =>
+            rect.width > 0 &&
+            rect.left >= -1 &&
+            rect.right <= window.innerWidth + 1,
+        ),
+        canvas: {
+          left: canvasRect.left,
+          top: canvasRect.top,
+          right: canvasRect.right,
+          bottom: canvasRect.bottom,
+        },
+        contextRail: {
+          left: railRect.left,
+          top: railRect.top,
+          right: railRect.right,
+          bottom: railRect.bottom,
+        },
+      };
+    });
+
+    assert.equal(
+      metrics.horizontalOverflow,
+      false,
+      `${testCase.name}: horizontal overflow`,
+    );
+    assert.equal(
+      metrics.workflowButtonCount,
+      5,
+      `${testCase.name}: workflow stage count`,
+    );
+    assert.equal(
+      metrics.workflowRows,
+      testCase.workflowRows,
+      `${testCase.name}: workflow rows`,
+    );
+    assert.equal(
+      metrics.workflowWithinViewport,
+      true,
+      `${testCase.name}: workflow viewport`,
+    );
+    assert.equal(
+      metrics.allWorkflowButtonsVisible,
+      true,
+      `${testCase.name}: workflow buttons clipped`,
+    );
+    if (testCase.contextPlacement === "side") {
+      assert.ok(
+        metrics.contextRail.left >= metrics.canvas.right - 2,
+        `${testCase.name}: context rail is not beside the canvas`,
+      );
+      assert.ok(
+        Math.abs(metrics.contextRail.top - metrics.canvas.top) < 16,
+        `${testCase.name}: context rail top is misaligned`,
+      );
+    } else {
+      assert.ok(
+        metrics.contextRail.top >= metrics.canvas.bottom - 2,
+        `${testCase.name}: context rail is not below the canvas`,
+      );
     }
-    const mainRect = main.getBoundingClientRect();
-    const railRect = contextRail.getBoundingClientRect();
-    const workflowRect = workflow.getBoundingClientRect();
+    assert.deepEqual(pageErrors, [], `${testCase.name}: page errors`);
+
+    await page.screenshot({
+      path: `${ARTIFACT_DIR}/${testCase.name}.png`,
+      fullPage: true,
+    });
     return {
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-      documentScrollWidth: document.documentElement.scrollWidth,
-      bodyScrollWidth: document.body.scrollWidth,
-      horizontalOverflow:
-        document.documentElement.scrollWidth > window.innerWidth + 1 ||
-        document.body.scrollWidth > window.innerWidth + 1,
-      workflowButtonCount: buttons.length,
-      workflowRows: rowPositions.length,
-      workflowWithinViewport:
-        workflowRect.left >= -1 && workflowRect.right <= window.innerWidth + 1,
-      allWorkflowButtonsVisible: buttonRects.every(
-        (rect) => rect.width > 0 && rect.left >= -1 && rect.right <= window.innerWidth + 1,
-      ),
-      main: {
-        left: mainRect.left,
-        top: mainRect.top,
-        right: mainRect.right,
-        bottom: mainRect.bottom,
-      },
-      contextRail: {
-        left: railRect.left,
-        top: railRect.top,
-        right: railRect.right,
-        bottom: railRect.bottom,
-      },
+      ...testCase,
+      responseStatus,
+      finalUrl: page.url(),
+      ...metrics,
+      consoleErrors,
+      pageErrors,
     };
-  });
-
-  assert.equal(metrics.horizontalOverflow, false, `${testCase.name}: horizontal overflow`);
-  assert.equal(metrics.workflowButtonCount, 5, `${testCase.name}: workflow stage count`);
-  assert.equal(metrics.workflowRows, testCase.workflowRows, `${testCase.name}: workflow rows`);
-  assert.equal(metrics.workflowWithinViewport, true, `${testCase.name}: workflow viewport`);
-  assert.equal(
-    metrics.allWorkflowButtonsVisible,
-    true,
-    `${testCase.name}: workflow buttons clipped`,
-  );
-  if (testCase.contextPlacement === "side") {
-    assert.ok(
-      metrics.contextRail.left >= metrics.main.right - 2,
-      `${testCase.name}: context rail is not beside the canvas`,
-    );
-    assert.ok(
-      Math.abs(metrics.contextRail.top - metrics.main.top) < 16,
-      `${testCase.name}: context rail top is misaligned`,
-    );
-  } else {
-    assert.ok(
-      metrics.contextRail.top >= metrics.main.bottom - 2,
-      `${testCase.name}: context rail is not below the canvas`,
-    );
+  } catch (error) {
+    await Promise.allSettled([
+      page.screenshot({
+        path: `${ARTIFACT_DIR}/${testCase.name}-failure.png`,
+        fullPage: true,
+      }),
+      page.content().then((html) =>
+        writeFile(`${ARTIFACT_DIR}/${testCase.name}-failure.html`, html),
+      ),
+      writeFile(
+        `${ARTIFACT_DIR}/${testCase.name}-failure.json`,
+        JSON.stringify(
+          {
+            responseStatus,
+            finalUrl: page.url(),
+            consoleErrors,
+            pageErrors,
+            error:
+              error instanceof Error
+                ? { name: error.name, message: error.message, stack: error.stack }
+                : error,
+          },
+          null,
+          2,
+        ),
+      ),
+    ]);
+    throw error;
+  } finally {
+    await context.close();
   }
-  assert.deepEqual(pageErrors, [], `${testCase.name}: page errors`);
-
-  await page.screenshot({
-    path: `${ARTIFACT_DIR}/${testCase.name}.png`,
-    fullPage: true,
-  });
-  await context.close();
-  return { ...testCase, ...metrics, consoleErrors, pageErrors };
 }
 
 function createFrontendServer() {
@@ -323,8 +389,11 @@ function createFrontendServer() {
       const url = new URL(request.url ?? "/", FRONTEND_ORIGIN);
       const headers = new Headers();
       for (const [name, value] of Object.entries(request.headers)) {
-        if (Array.isArray(value)) value.forEach((item) => headers.append(name, item));
-        else if (value !== undefined) headers.set(name, value);
+        if (Array.isArray(value)) {
+          value.forEach((item) => headers.append(name, item));
+        } else if (value !== undefined) {
+          headers.set(name, value);
+        }
       }
       const hasBody = !["GET", "HEAD"].includes(request.method ?? "GET");
       const workerRequest = new Request(url, {
@@ -338,9 +407,14 @@ function createFrontendServer() {
         passThroughOnException() {},
       });
       response.statusCode = workerResponse.status;
-      workerResponse.headers.forEach((value, name) => response.setHeader(name, value));
-      if (workerResponse.body) Readable.fromWeb(workerResponse.body).pipe(response);
-      else response.end();
+      workerResponse.headers.forEach((value, name) =>
+        response.setHeader(name, value),
+      );
+      if (workerResponse.body) {
+        Readable.fromWeb(workerResponse.body).pipe(response);
+      } else {
+        response.end();
+      }
     } catch (error) {
       response.statusCode = 500;
       response.setHeader("content-type", "text/plain; charset=utf-8");
@@ -350,12 +424,18 @@ function createFrontendServer() {
 }
 
 function createMockBackend() {
-  return createServer(async (request, response) => {
+  return createServer((request, response) => {
     const origin = request.headers.origin ?? FRONTEND_ORIGIN;
     response.setHeader("access-control-allow-origin", origin);
     response.setHeader("access-control-allow-credentials", "true");
-    response.setHeader("access-control-allow-headers", "content-type, authorization");
-    response.setHeader("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    response.setHeader(
+      "access-control-allow-headers",
+      "content-type, authorization",
+    );
+    response.setHeader(
+      "access-control-allow-methods",
+      "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    );
     response.setHeader("content-type", "application/json; charset=utf-8");
     if (request.method === "OPTIONS") {
       response.statusCode = 204;
@@ -363,8 +443,12 @@ function createMockBackend() {
       return;
     }
 
-    const url = new URL(request.url ?? "/", `http://127.0.0.1:${BACKEND_PORT}`);
+    const url = new URL(
+      request.url ?? "/",
+      `http://localhost:${BACKEND_PORT}`,
+    );
     const path = url.pathname;
+    backendRequests.push({ method: request.method, path });
     let data;
     if (path === "/api/platform/auth/me") {
       data = {
@@ -415,7 +499,7 @@ function createMockBackend() {
 function listen(server, port) {
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve(server));
+    server.listen(port, () => resolve(server));
   });
 }
 
