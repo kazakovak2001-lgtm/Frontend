@@ -2,7 +2,7 @@
 
 **Repository:** `kazakovak2001-lgtm/Frontend`
 
-**Status:** Implemented; CI validation pending
+**Status:** Implemented and CI-verified
 
 ## Objective
 
@@ -47,19 +47,20 @@ This is intentionally schema-tolerant because the existing backend modules retur
 
 - Every existing action remains connected to its original backend method.
 - The default all-tools inventory remains available during incremental route migration.
-- System status still loads automatically only when the System tool is visible.
+- System status loads automatically only when the System tool is visible.
 - Errors remain visible and continue to trigger the existing toast feedback.
 - Full backend responses remain inspectable.
+
+## Validation
+
+Frontend CI passed:
+
+- TypeScript check;
+- production build;
+- existing route compatibility without a required `stage` prop;
+- complete typed module-key/state registry;
+- schema-tolerant result summarization.
 
 ## Next Slice
 
 Place stage-scoped instances into the five workflow canvases and add a persistent context rail. The route must reuse this registry rather than recreate module buttons or request state.
-
-## Validation Gate
-
-- TypeScript check;
-- production build;
-- no missing backend action;
-- no duplicate Studio module card;
-- default all-tools compatibility;
-- collapsed raw response rather than raw JSON as primary content.
