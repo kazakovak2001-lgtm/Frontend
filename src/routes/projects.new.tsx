@@ -25,6 +25,7 @@ import {
 } from "@/constants";
 import { toast } from "sonner";
 import type { Difficulty, GameGenre } from "@/types";
+import { backendApi } from "@/services/backendApi";
 
 export const Route = createFileRoute("/projects/new")({
   head: () => ({ meta: [{ title: "New Project — Roblox AI Studio" }] }),
@@ -51,20 +52,24 @@ function NewProjectPage() {
       return;
     }
     setLoading(true);
-    // FUTURE INTEGRATION: this triggers the real AI generation pipeline.
-    await new Promise((r) => setTimeout(r, 1200));
-    const project = createProject({
-      name: name.trim(),
-      gameType,
-      description: description.trim(),
-      genre,
-      difficulty,
-      players,
-      targetAudience: audience,
-    });
-    setLoading(false);
-    toast.success("Project created — generation queued.");
-    navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
+    try {
+      const project = await createProject({
+        name: name.trim(),
+        gameType,
+        description: description.trim(),
+        genre,
+        difficulty,
+        players,
+        targetAudience: audience,
+      });
+      await backendApi.ai.startGeneration(project.id);
+      toast.success("Project created — generation started.");
+      navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Project creation failed.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
