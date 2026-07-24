@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { mockAssistantReply } from "@/services/mockApi";
 import { MOCK_CHAT } from "@/constants/mock-data";
 import type { ChatMessage } from "@/types";
+import { backendApi } from "@/services/backendApi";
 
-export function ChatPanel() {
+export function ChatPanel({ projectId }: { projectId?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_CHAT);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -23,31 +23,69 @@ export function ChatPanel() {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (!projectId) return;
+    backendApi.workspace.chat
+      .history(projectId)
+      .then((history) => {
+        const mapped = history
+          .map((item) => item as Record<string, unknown>)
+          .filter((item) => item.content)
+          .map((item, index) => ({
+            id: String(item.id ?? "history-" + index),
+            role: (item.role === "user" ? "user" : "assistant") as ChatMessage["role"],
+            content: String(item.content),
+            createdAt: String(item.createdAt ?? new Date().toISOString()),
+          }));
+        if (mapped.length) setMessages(mapped);
+      })
+      .catch((error) => console.warn("[chat] history load failed", error));
+  }, [projectId]);
+
   const send = async () => {
     const text = input.trim();
     if (!text || thinking) return;
     const userMsg: ChatMessage = {
-      id: `m_${Date.now()}`,
+      id: "m_" + Date.now(),
       role: "user",
       content: text,
       createdAt: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
     setInput("");
     setThinking(true);
-    const reply = await mockAssistantReply(text);
-    setMessages((prev) => [
-      ...prev,
-      { id: `a_${Date.now()}`, role: "assistant", content: reply, createdAt: new Date().toISOString() },
-    ]);
-    setThinking(false);
-    inputRef.current?.focus();
+    try {
+      const response = await backendApi.ai.chat(nextMessages, projectId);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "a_" + Date.now(),
+          role: "assistant",
+          content: response.content,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "error_" + Date.now(),
+          role: "assistant",
+          content: error instanceof Error ? "Backend error: " + error.message : "Backend error.",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setThinking(false);
+      inputRef.current?.focus();
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      send();
+      void send();
     }
   };
 
@@ -92,7 +130,7 @@ export function ChatPanel() {
                 <span
                   key={i}
                   className="h-2 w-2 animate-glow-pulse rounded-full bg-muted-foreground"
-                  style={{ animationDelay: `${i * 0.2}s` }}
+                  style={{ animationDelay: i * 0.2 + "s" }}
                 />
               ))}
             </div>
@@ -113,7 +151,7 @@ export function ChatPanel() {
             className="max-h-32 min-h-[44px] resize-none border-border/60 bg-background/60"
           />
           <Button
-            onClick={send}
+            onClick={() => void send()}
             disabled={!input.trim() || thinking}
             size="icon"
             className="h-11 w-11 shrink-0 bg-gradient-primary text-primary-foreground shadow-glow"
@@ -123,7 +161,7 @@ export function ChatPanel() {
           </Button>
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          Responses are placeholders — the AI engine connects in a future release.
+          Connected to the Roblox AI Studio backend.
         </p>
       </div>
     </div>
