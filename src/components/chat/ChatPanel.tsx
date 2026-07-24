@@ -22,7 +22,7 @@ export function ChatPanel({ project }: { project: Project }) {
   }, [messages, thinking]);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export function ChatPanel({ project }: { project: Project }) {
       ]);
     } finally {
       setThinking(false);
-      inputRef.current?.focus();
+      inputRef.current?.focus({ preventScroll: true });
     }
   };
 
