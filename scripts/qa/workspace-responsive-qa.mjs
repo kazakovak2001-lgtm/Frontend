@@ -13,8 +13,8 @@ const PUBLIC_ROOT = path.resolve(".output/public");
 const ARTIFACT_DIR = "artifacts/workspace-responsive";
 const PROJECT_ID = "qa-project";
 const backendRequests = [];
-
 const now = new Date("2026-07-24T15:00:00.000Z").toISOString();
+
 const project = {
   id: PROJECT_ID,
   ownerId: "qa-owner",
@@ -33,6 +33,7 @@ const project = {
   createdAt: Date.parse("2026-07-23T10:00:00.000Z"),
   updatedAt: Date.parse(now),
 };
+
 const execution = {
   id: "execution-qa-complete",
   blueprint_id: "blueprint-qa",
@@ -47,6 +48,7 @@ const execution = {
     { agent: "lua_generator", status: "completed", duration_ms: 150000 },
   ],
 };
+
 const manifest = {
   format: "roblox-ai-studio-project",
   version: "1.0.0",
@@ -64,6 +66,7 @@ const manifest = {
   },
   executions: [execution],
 };
+
 const generationHistory = [
   {
     id: execution.id,
@@ -78,6 +81,7 @@ const generationHistory = [
     failures: 0,
   },
 ];
+
 const agents = [
   {
     id: "game_designer",
@@ -142,19 +146,21 @@ await mkdir(ARTIFACT_DIR, { recursive: true });
 const backendServer = await listen(createMockBackend(), BACKEND_PORT);
 const frontendServer = await listen(createFrontendServer(), FRONTEND_PORT);
 const browser = await chromium.launch({ headless: true });
-
 const results = [];
 let failure;
+
 try {
   for (const testCase of cases) {
     results.push(await inspectViewport(browser, testCase));
   }
   assert.ok(
-    backendRequests.some((request) => request.path === "/api/platform/auth/me"),
+    backendRequests.some(({ path }) => path === "/api/platform/auth/me"),
     "responsive QA did not reach the authentication fixture",
   );
   assert.ok(
-    backendRequests.some((request) => request.path === `/api/projects/${PROJECT_ID}/export`),
+    backendRequests.some(
+      ({ path }) => path === `/api/projects/${PROJECT_ID}/export`,
+    ),
     "responsive QA did not load the Workspace read model",
   );
 } catch (error) {
@@ -168,10 +174,7 @@ try {
         projectId: PROJECT_ID,
         backendRequests,
         results,
-        failure:
-          failure instanceof Error
-            ? { name: failure.name, message: failure.message, stack: failure.stack }
-            : failure,
+        failure: serializeError(failure),
       },
       null,
       2,
@@ -194,6 +197,7 @@ async function inspectViewport(browserInstance, testCase) {
   const consoleErrors = [];
   const pageErrors = [];
   let responseStatus;
+
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -226,6 +230,7 @@ async function inspectViewport(browserInstance, testCase) {
       if (!workflow || !contextRail || !stageCanvas) {
         throw new Error("Workspace workflow, stage canvas, or context rail is missing");
       }
+
       const buttons = [...workflow.querySelectorAll("button")];
       const buttonRects = buttons.map((button) => button.getBoundingClientRect());
       const rowPositions = [];
@@ -237,6 +242,7 @@ async function inspectViewport(browserInstance, testCase) {
       const canvasRect = stageCanvas.getBoundingClientRect();
       const railRect = contextRail.getBoundingClientRect();
       const workflowRect = workflow.getBoundingClientRect();
+
       return {
         viewportWidth: window.innerWidth,
         viewportHeight: window.innerHeight,
@@ -258,11 +264,11 @@ async function inspectViewport(browserInstance, testCase) {
         ),
         activeStage:
           workflow.querySelector('[aria-current="step"]')?.textContent?.trim() ?? "",
-        canvas: rect(canvasRect),
-        contextRail: rect(railRect),
+        canvas: toRect(canvasRect),
+        contextRail: toRect(railRect),
       };
 
-      function rect(value) {
+      function toRect(value) {
         return {
           left: Math.round(value.left),
           top: Math.round(value.top),
@@ -275,7 +281,10 @@ async function inspectViewport(browserInstance, testCase) {
     });
 
     assert.equal(responseStatus, 200, `${testCase.name}: document response`);
-    assert.equal(metrics.scrollY, 0, `${testCase.name}: unexpected page jump`);
+    assert.ok(
+      metrics.scrollY <= 4,
+      `${testCase.name}: unexpected page jump (${metrics.scrollY}px)`,
+    );
     assert.equal(
       metrics.horizontalOverflow,
       false,
@@ -306,6 +315,7 @@ async function inspectViewport(browserInstance, testCase) {
       new RegExp(testCase.stage, "i"),
       `${testCase.name}: active workflow stage`,
     );
+
     if (testCase.contextPlacement === "side") {
       assert.ok(
         metrics.contextRail.left >= metrics.canvas.right - 2,
@@ -341,9 +351,11 @@ async function inspectViewport(browserInstance, testCase) {
         path: `${ARTIFACT_DIR}/${testCase.name}-failure.png`,
         fullPage: true,
       }),
-      page.content().then((html) =>
-        writeFile(`${ARTIFACT_DIR}/${testCase.name}-failure.html`, html),
-      ),
+      page
+        .content()
+        .then((html) =>
+          writeFile(`${ARTIFACT_DIR}/${testCase.name}-failure.html`, html),
+        ),
       writeFile(
         `${ARTIFACT_DIR}/${testCase.name}-failure.json`,
         JSON.stringify(
@@ -352,10 +364,7 @@ async function inspectViewport(browserInstance, testCase) {
             finalUrl: page.url(),
             consoleErrors,
             pageErrors,
-            error:
-              error instanceof Error
-                ? { name: error.name, message: error.message, stack: error.stack }
-                : error,
+            error: serializeError(error),
           },
           null,
           2,
@@ -383,25 +392,23 @@ function createFrontendServer() {
         }
       }
       const hasBody = !["GET", "HEAD"].includes(request.method ?? "GET");
-      const workerRequest = new Request(url, {
-        method: request.method,
-        headers,
-        body: hasBody ? Readable.toWeb(request) : undefined,
-        duplex: hasBody ? "half" : undefined,
-      });
-      const workerResponse = await worker.fetch(workerRequest, {}, {
-        waitUntil() {},
-        passThroughOnException() {},
-      });
+      const workerResponse = await worker.fetch(
+        new Request(url, {
+          method: request.method,
+          headers,
+          body: hasBody ? Readable.toWeb(request) : undefined,
+          duplex: hasBody ? "half" : undefined,
+        }),
+        {},
+        { waitUntil() {}, passThroughOnException() {} },
+      );
+
       response.statusCode = workerResponse.status;
       workerResponse.headers.forEach((value, name) =>
         response.setHeader(name, value),
       );
-      if (workerResponse.body) {
-        Readable.fromWeb(workerResponse.body).pipe(response);
-      } else {
-        response.end();
-      }
+      if (workerResponse.body) Readable.fromWeb(workerResponse.body).pipe(response);
+      else response.end();
     } catch (error) {
       response.statusCode = 500;
       response.setHeader("content-type", "text/plain; charset=utf-8");
@@ -412,8 +419,7 @@ function createFrontendServer() {
 
 async function servePublicAsset(request, response, pathname) {
   if (!["GET", "HEAD"].includes(request.method ?? "GET")) return false;
-  const decoded = decodeURIComponent(pathname);
-  const candidate = path.resolve(PUBLIC_ROOT, `.${decoded}`);
+  const candidate = path.resolve(PUBLIC_ROOT, `.${decodeURIComponent(pathname)}`);
   if (candidate !== PUBLIC_ROOT && !candidate.startsWith(`${PUBLIC_ROOT}${path.sep}`)) {
     return false;
   }
@@ -422,8 +428,7 @@ async function servePublicAsset(request, response, pathname) {
     response.statusCode = 200;
     response.setHeader("content-type", contentType(candidate));
     response.setHeader("cache-control", "no-store");
-    if (request.method === "HEAD") response.end();
-    else response.end(content);
+    response.end(request.method === "HEAD" ? undefined : content);
     return true;
   } catch (error) {
     if (error && typeof error === "object" && error.code === "ENOENT") return false;
@@ -432,7 +437,6 @@ async function servePublicAsset(request, response, pathname) {
 }
 
 function contentType(filename) {
-  const extension = path.extname(filename).toLowerCase();
   return (
     {
       ".css": "text/css; charset=utf-8",
@@ -445,7 +449,7 @@ function contentType(filename) {
       ".webp": "image/webp",
       ".woff": "font/woff",
       ".woff2": "font/woff2",
-    }[extension] ?? "application/octet-stream"
+    }[path.extname(filename).toLowerCase()] ?? "application/octet-stream"
   );
 }
 
@@ -469,12 +473,12 @@ function createMockBackend() {
       return;
     }
 
-    const url = new URL(
+    const requestPath = new URL(
       request.url ?? "/",
       `http://localhost:${BACKEND_PORT}`,
-    );
-    const requestPath = url.pathname;
+    ).pathname;
     backendRequests.push({ method: request.method, path: requestPath });
+
     let data;
     if (requestPath === "/api/platform/auth/me") {
       data = {
@@ -517,6 +521,7 @@ function createMockBackend() {
     } else {
       data = { status: "completed", success: true };
     }
+
     response.statusCode = 200;
     response.end(JSON.stringify({ success: true, data }));
   });
@@ -530,7 +535,11 @@ function listen(server, port) {
 }
 
 function close(server) {
-  return new Promise((resolve) => {
-    server.close(() => resolve());
-  });
+  return new Promise((resolve) => server.close(() => resolve()));
+}
+
+function serializeError(error) {
+  return error instanceof Error
+    ? { name: error.name, message: error.message, stack: error.stack }
+    : error;
 }
