@@ -40,7 +40,7 @@ function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register(name, email);
+      await register(name, email, password);
       toast.success("Account created!");
       navigate({ to: "/dashboard" });
     } finally {
