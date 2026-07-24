@@ -2,9 +2,9 @@
 
 **Repository:** `kazakovak2001-lgtm/Frontend`
 
-**Base:** `agent/workspace-1-foundation`
+**Base:** `main`
 
-**Status:** Implemented; CI validation pending
+**Status:** Implemented and CI-verified
 
 ## Objective
 
@@ -59,17 +59,18 @@ The route now exposes five deep-linkable workflow stages through the `stage` sea
 - Studio synchronization continues to use the existing backend route.
 - The UI explicitly states that real generated-artifact delivery remains unverified until STUDIO-1.
 
+## Validation
+
+GitHub Actions passed on the rebased branch:
+
+- TypeScript check;
+- production build;
+- TanStack Router generation with optional `stage` search state;
+- clean four-file diff against the current `main` branch.
+
 ## Remaining WORKSPACE-1 Work
 
 - Decompose `WorkspaceModules` into stage-specific tools instead of displaying the full technical inventory in Validate.
 - Replace generic JSON module outputs with typed result presenters.
 - Add a persistent context rail for run health, recent activity, and blockers.
 - Add focused route/component tests and responsive visual verification.
-
-## Validation Gate
-
-- TypeScript check;
-- production build;
-- no route-generation errors from optional `stage` search state;
-- no new backend endpoint or data store;
-- responsive workflow rail on desktop and tablet.
