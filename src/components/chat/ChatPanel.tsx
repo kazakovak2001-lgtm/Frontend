@@ -14,11 +14,13 @@ export function ChatPanel({ project }: { project: Project }) {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    const viewport = messagesRef.current;
+    if (!viewport || (!messages.length && !thinking)) return;
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
 
   useEffect(() => {
@@ -151,7 +153,7 @@ export function ChatPanel({ project }: { project: Project }) {
           <Trash2 className="mr-1 h-3.5 w-3.5" /> Clear
         </Button>
       </div>
-      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+      <div ref={messagesRef} className="flex-1 space-y-4 overflow-y-auto p-4">
         {!loadingHistory && messages.length === 0 && (
           <div className="mx-auto max-w-md py-12 text-center text-sm text-muted-foreground">
             Ask the AI to design, change, review, or generate something for{" "}
@@ -212,7 +214,6 @@ export function ChatPanel({ project }: { project: Project }) {
             </div>
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       <div className="border-t border-border/60 p-3">
