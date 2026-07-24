@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -40,7 +40,8 @@ import { WorkspaceModules } from "@/components/workspace/WorkspaceModules";
 import { useProjects } from "@/contexts/ProjectsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useProjectRealtime } from "@/hooks/useProjectRealtime";
-import { backendApi, type GenerationRecord } from "@/services/backendApi";
+import { useProjectWorkspaceData } from "@/hooks/useProjectWorkspaceData";
+import { backendApi } from "@/services/backendApi";
 import { formatDate } from "@/utils/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,19 +69,22 @@ function ProjectWorkspacePage() {
   } = useProjects();
   const { runs, setRun } = useWorkspace();
   const realtime = useProjectRealtime(projectId);
+  const {
+    data: workspaceData,
+    refreshing: workspaceRefreshing,
+    error: workspaceError,
+    refresh: refreshWorkspace,
+  } = useProjectWorkspaceData(projectId);
   const navigate = useNavigate();
   const project = getProject(projectId);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [history, setHistory] = useState<GenerationRecord[]>([]);
-  const [backendAgents, setBackendAgents] = useState<
-    Awaited<ReturnType<typeof backendApi.workspace.agents>>
-  >([]);
-  const [manifest, setManifest] = useState<Record<string, unknown>>();
   const [busy, setBusy] = useState<string>();
   const [realtimeWaitElapsed, setRealtimeWaitElapsed] = useState(false);
   const pendingStartRef = useRef<string | undefined>(undefined);
   const activeRun = runs[projectId];
+  const history = workspaceData?.history ?? [];
+  const manifest = workspaceData?.manifest;
 
   useEffect(() => {
     if (!project) return;
@@ -88,10 +92,8 @@ function ProjectWorkspacePage() {
     setDescription(project.description);
   }, [project]);
 
-  const loadHistory = useCallback(async () => {
-    const records = await backendApi.projects.history(projectId);
-    setHistory(records);
-    const latest = records[0];
+  useEffect(() => {
+    const latest = history[0];
     if (latest && ["running", "queued"].includes(latest.status)) {
       setRun({
         projectId,
@@ -100,17 +102,7 @@ function ProjectWorkspacePage() {
         startedAt: new Date(latest.startedAt).toISOString(),
       });
     }
-  }, [projectId, setRun]);
-
-  useEffect(() => {
-    void loadHistory().catch((error) =>
-      console.warn("[workspace] history load failed", error),
-    );
-    void backendApi.workspace
-      .agents()
-      .then(setBackendAgents)
-      .catch((error) => console.warn("[workspace] agents load failed", error));
-  }, [loadHistory, projectId]);
+  }, [history, projectId, setRun]);
 
   useEffect(() => {
     setRealtimeWaitElapsed(false);
@@ -138,7 +130,7 @@ function ProjectWorkspacePage() {
           status: result.status,
           startedAt: activeRun.startedAt,
         });
-        await refreshProjects();
+        await Promise.all([refreshProjects(), refreshWorkspace()]);
         toast.success("Generation started.");
       })
       .catch((error) => {
@@ -159,6 +151,7 @@ function ProjectWorkspacePage() {
     realtime.snapshot.connected,
     realtimeWaitElapsed,
     refreshProjects,
+    refreshWorkspace,
     setRun,
   ]);
 
@@ -197,7 +190,7 @@ function ProjectWorkspacePage() {
           startedAt: activeRunStartedAt,
         });
         if (["completed", "failed", "cancelled"].includes(status)) {
-          await Promise.all([refreshProjects(), loadHistory()]);
+          await Promise.all([refreshProjects(), refreshWorkspace()]);
         }
       } catch (error) {
         console.warn("[workspace] generation poll failed", error);
@@ -213,17 +206,20 @@ function ProjectWorkspacePage() {
     activeExecutionId,
     activeRunStartedAt,
     activeRunStatus,
-    loadHistory,
     projectId,
     refreshProjects,
+    refreshWorkspace,
     setRun,
   ]);
 
   const agents = useMemo(() => {
     const live = realtime.agents;
     if (live.length) return live;
-    return backendAgents.map((agent) => ({ ...agent, icon: "Bot" }));
-  }, [backendAgents, realtime.agents]);
+    return (workspaceData?.agents ?? []).map((agent) => ({
+      ...agent,
+      icon: "Bot",
+    }));
+  }, [realtime.agents, workspaceData?.agents]);
 
   if (isLoading) {
     return (
@@ -260,7 +256,7 @@ function ProjectWorkspacePage() {
         status: result.status,
         startedAt: new Date().toISOString(),
       });
-      await refreshProjects();
+      await Promise.all([refreshProjects(), refreshWorkspace()]);
       toast.success("Generation started.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Generation failed");
@@ -272,9 +268,12 @@ function ProjectWorkspacePage() {
   const loadManifest = async () => {
     setBusy("manifest");
     try {
-      const data = await backendApi.projects.export(project.id);
-      setManifest(data);
-      return data;
+      const data = await refreshWorkspace();
+      if (!data?.manifest) {
+        toast.error("Generate the project before loading its manifest.");
+        return undefined;
+      }
+      return data.manifest;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Export failed");
       return undefined;
@@ -400,6 +399,15 @@ function ProjectWorkspacePage() {
         </div>
       </div>
 
+      {(workspaceError || workspaceData?.degradedSources.length) && (
+        <Card className="mb-6 border-warning/30 bg-warning/5 p-4 text-sm">
+          <p className="font-medium text-warning">Workspace data is degraded</p>
+          <p className="mt-1 text-muted-foreground">
+            {workspaceError ?? workspaceData?.degradedSources.join(" · ")}
+          </p>
+        </Card>
+      )}
+
       <Tabs defaultValue="overview">
         <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1 bg-card/50 p-1">
           <TabsTrigger value="overview">
@@ -498,7 +506,7 @@ function ProjectWorkspacePage() {
               </div>
               <Button
                 variant="outline"
-                disabled={busy === "manifest"}
+                disabled={busy === "manifest" || workspaceRefreshing}
                 onClick={() => void loadManifest()}
               >
                 Load manifest
@@ -615,7 +623,7 @@ function ProjectWorkspacePage() {
             description="Download the generated blueprint and execution package. Live Roblox Studio transfer is available in the Modules tab."
             action={
               <Button
-                disabled={busy === "manifest"}
+                disabled={busy === "manifest" || workspaceRefreshing}
                 onClick={() => void downloadManifest()}
               >
                 <Download className="mr-1.5 h-4 w-4" /> Download manifest
