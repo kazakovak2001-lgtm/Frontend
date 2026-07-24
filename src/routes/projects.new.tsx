@@ -25,6 +25,7 @@ import {
 } from "@/constants";
 import { toast } from "sonner";
 import type { Difficulty, GameGenre } from "@/types";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export const Route = createFileRoute("/projects/new")({
   head: () => ({ meta: [{ title: "New Project — Roblox AI Studio" }] }),
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/projects/new")({
 
 function NewProjectPage() {
   const { createProject } = useProjects();
+  const { setRun } = useWorkspace();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -51,20 +53,34 @@ function NewProjectPage() {
       return;
     }
     setLoading(true);
-    // FUTURE INTEGRATION: this triggers the real AI generation pipeline.
-    await new Promise((r) => setTimeout(r, 1200));
-    const project = createProject({
-      name: name.trim(),
-      gameType,
-      description: description.trim(),
-      genre,
-      difficulty,
-      players,
-      targetAudience: audience,
-    });
-    setLoading(false);
-    toast.success("Project created — generation queued.");
-    navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
+    try {
+      const project = await createProject({
+        name: name.trim(),
+        gameType,
+        description: description.trim(),
+        genre,
+        difficulty,
+        players,
+        targetAudience: audience,
+      });
+      setRun({
+        projectId: project.id,
+        executionId: "pending",
+        status: "pending_start",
+        startedAt: new Date().toISOString(),
+      });
+      toast.success("Project created. Opening the realtime workspace…");
+      await navigate({
+        to: "/projects/$projectId",
+        params: { projectId: project.id },
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Project creation failed.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -91,21 +107,32 @@ function NewProjectPage() {
               <div className="space-y-1.5">
                 <Label>Game type</Label>
                 <Select value={gameType} onValueChange={setGameType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {GAME_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Genre</Label>
-                <Select value={genre} onValueChange={(v) => setGenre(v as GameGenre)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={genre}
+                  onValueChange={(v) => setGenre(v as GameGenre)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {GENRES.map((g) => (
-                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                      <SelectItem key={g} value={g}>
+                        {g}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -123,18 +150,26 @@ function NewProjectPage() {
                 className="resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                The more detail you give, the better the agents can build your game.
+                The more detail you give, the better the agents can build your
+                game.
               </p>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label>Difficulty</Label>
-                <Select value={difficulty} onValueChange={(v) => setDifficulty(v as Difficulty)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={difficulty}
+                  onValueChange={(v) => setDifficulty(v as Difficulty)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {DIFFICULTIES.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -142,10 +177,14 @@ function NewProjectPage() {
               <div className="space-y-1.5">
                 <Label>Players</Label>
                 <Select value={players} onValueChange={setPlayers}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {PLAYER_COUNTS.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -153,10 +192,14 @@ function NewProjectPage() {
               <div className="space-y-1.5">
                 <Label>Target audience</Label>
                 <Select value={audience} onValueChange={setAudience}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {TARGET_AUDIENCES.map((a) => (
-                      <SelectItem key={a} value={a}>{a}</SelectItem>
+                      <SelectItem key={a} value={a}>
+                        {a}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -191,7 +234,8 @@ function NewProjectPage() {
               <li>4. Export your finished Roblox project.</li>
             </ul>
             <div className="mt-5 rounded-xl border border-cyan/30 bg-cyan/10 p-3 text-xs text-cyan">
-              The generation pipeline is in development. Projects are saved and ready for it.
+              Project creation starts the live backend pipeline and opens its
+              realtime workspace.
             </div>
           </Card>
         </aside>

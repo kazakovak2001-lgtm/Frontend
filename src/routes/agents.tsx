@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bot, Activity, CheckCircle2, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bot, Activity, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { AppLayout } from "@/layouts/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { AgentCard } from "@/components/agents/AgentCard";
-import { AGENT_BLUEPRINT } from "@/constants";
+import { Button } from "@/components/ui/button";
+import { backendApi, type RealtimeAgent } from "@/services/backendApi";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/agents")({
   head: () => ({ meta: [{ title: "AI Agents — Roblox AI Studio" }] }),
@@ -12,23 +15,62 @@ export const Route = createFileRoute("/agents")({
 });
 
 function AgentsPage() {
-  const total = AGENT_BLUEPRINT.length;
-  const completed = AGENT_BLUEPRINT.filter((a) => a.status === "completed").length;
-  const running = AGENT_BLUEPRINT.filter((a) => a.status === "running").length;
-  const queued = AGENT_BLUEPRINT.filter((a) => a.status === "queued" || a.status === "idle").length;
+  const [agents, setAgents] = useState<RealtimeAgent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      setAgents(await backendApi.workspace.agents());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Agent load failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const total = agents.length;
+  const completed = agents.filter((a) => a.status === "completed").length;
+  const running = agents.filter((a) => a.status === "running").length;
+  const queued = agents.filter(
+    (a) => a.status === "queued" || a.status === "idle",
+  ).length;
 
   const stats = [
     { label: "Total agents", value: total, icon: Bot, color: "text-primary" },
-    { label: "Completed", value: completed, icon: CheckCircle2, color: "text-success" },
+    {
+      label: "Completed",
+      value: completed,
+      icon: CheckCircle2,
+      color: "text-success",
+    },
     { label: "Running", value: running, icon: Activity, color: "text-cyan" },
-    { label: "Queued", value: queued, icon: Clock, color: "text-muted-foreground" },
+    {
+      label: "Queued",
+      value: queued,
+      icon: Clock,
+      color: "text-muted-foreground",
+    },
   ];
 
   return (
     <AppLayout>
       <PageHeader
         title="AI Agents"
-        description="The autonomous pipeline that turns your prompt into a complete Roblox game."
+        description="Agents registered by the live Roblox AI Studio backend."
+        actions={
+          <Button
+            variant="outline"
+            disabled={loading}
+            onClick={() => void load()}
+          >
+            <RefreshCw className="mr-1 h-4 w-4" /> Refresh
+          </Button>
+        }
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -44,13 +86,15 @@ function AgentsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {AGENT_BLUEPRINT.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} />
+        {agents.map((agent) => (
+          <AgentCard key={agent.id} agent={{ ...agent, icon: "Bot" }} />
         ))}
       </div>
 
       <div className="mt-6 rounded-xl border border-cyan/30 bg-cyan/10 p-4 text-sm text-cyan">
-        These agents represent the planned generation pipeline. Live orchestration connects in a future release.
+        {loading
+          ? "Loading the backend agent registry…"
+          : `${agents.length} live agent definitions loaded from /api/system/agents.`}
       </div>
     </AppLayout>
   );

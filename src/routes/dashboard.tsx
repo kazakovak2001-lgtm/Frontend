@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   FolderKanban,
@@ -17,9 +18,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useProjects } from "@/contexts/ProjectsContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { MOCK_ACTIVITY } from "@/constants/mock-data";
 import { formatRelativeTime } from "@/utils/format";
 import { toast } from "sonner";
+import { backendApi } from "@/services/backendApi";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Roblox AI Studio" }] }),
@@ -58,10 +59,38 @@ function StatCard({
 function DashboardPage() {
   const { projects, duplicateProject, deleteProject } = useProjects();
   const { user } = useAuth();
+  const [agentCount, setAgentCount] = useState(0);
+
+  useEffect(() => {
+    backendApi.workspace
+      .agents()
+      .then((agents) => setAgentCount(agents.length))
+      .catch((error) => console.warn("[dashboard] agent load failed", error));
+  }, []);
 
   const generating = projects.filter((p) => p.status === "generating").length;
   const exported = projects.filter((p) => p.status === "exported").length;
   const recent = projects.slice(0, 3);
+  const activity = useMemo(
+    () =>
+      [...projects]
+        .sort(
+          (left, right) =>
+            new Date(right.updatedAt).getTime() -
+            new Date(left.updatedAt).getTime(),
+        )
+        .slice(0, 8)
+        .map((project) => ({
+          id: project.id,
+          title: `${project.name} · ${project.status}`,
+          description:
+            project.status === "generating"
+              ? "Backend generation pipeline is running."
+              : "Project data was updated.",
+          timestamp: project.updatedAt,
+        })),
+    [projects],
+  );
 
   return (
     <AppLayout>
@@ -69,7 +98,10 @@ function DashboardPage() {
         title={`Welcome back, ${user?.name ?? "Developer"} 👋`}
         description="Here's what's happening across your studio."
         actions={
-          <Button asChild className="bg-gradient-primary text-primary-foreground shadow-glow">
+          <Button
+            asChild
+            className="bg-gradient-primary text-primary-foreground shadow-glow"
+          >
             <Link to="/projects/new">
               <PlusCircle className="mr-1 h-4 w-4" /> New Project
             </Link>
@@ -78,16 +110,34 @@ function DashboardPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={FolderKanban} label="Total projects" value={String(projects.length)} trend="+2" />
-        <StatCard icon={Bot} label="Generating now" value={String(generating)} />
-        <StatCard icon={Rocket} label="Exported games" value={String(exported)} trend="+1" />
-        <StatCard icon={Activity} label="Active agents" value="8" />
+        <StatCard
+          icon={FolderKanban}
+          label="Total projects"
+          value={String(projects.length)}
+        />
+        <StatCard
+          icon={Bot}
+          label="Generating now"
+          value={String(generating)}
+        />
+        <StatCard
+          icon={Rocket}
+          label="Exported games"
+          value={String(exported)}
+        />
+        <StatCard
+          icon={Activity}
+          label="Registered agents"
+          value={String(agentCount)}
+        />
       </div>
 
       {/* Studio capabilities */}
       <div className="mt-8">
         <div className="mb-4 flex items-end justify-between">
-          <h2 className="font-display text-lg font-semibold">Studio capabilities</h2>
+          <h2 className="font-display text-lg font-semibold">
+            Studio capabilities
+          </h2>
           <span className="text-xs text-muted-foreground">Powered by AI</span>
         </div>
         <StudioCapabilities />
@@ -96,9 +146,24 @@ function DashboardPage() {
       {/* Quick actions */}
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         {[
-          { title: "New project", desc: "Describe a game idea", to: "/projects/new", icon: PlusCircle },
-          { title: "Browse projects", desc: "Manage your games", to: "/projects", icon: FolderKanban },
-          { title: "AI Agents", desc: "See the pipeline", to: "/agents", icon: Bot },
+          {
+            title: "New project",
+            desc: "Describe a game idea",
+            to: "/projects/new",
+            icon: PlusCircle,
+          },
+          {
+            title: "Browse projects",
+            desc: "Manage your games",
+            to: "/projects",
+            icon: FolderKanban,
+          },
+          {
+            title: "AI Agents",
+            desc: "See the pipeline",
+            to: "/agents",
+            icon: Bot,
+          },
         ].map((a) => (
           <Link key={a.to} to={a.to}>
             <Card className="group flex items-center gap-4 border-border/60 bg-card/50 p-4 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow">
@@ -119,8 +184,13 @@ function DashboardPage() {
         {/* Recent projects */}
         <div className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold">Recent projects</h2>
-            <Link to="/projects" className="text-sm text-primary hover:underline">
+            <h2 className="font-display text-lg font-semibold">
+              Recent projects
+            </h2>
+            <Link
+              to="/projects"
+              className="text-sm text-primary hover:underline"
+            >
               View all
             </Link>
           </div>
@@ -130,12 +200,26 @@ function DashboardPage() {
                 key={p.id}
                 project={p}
                 onDuplicate={(id) => {
-                  duplicateProject(id);
-                  toast.success("Project duplicated.");
+                  void duplicateProject(id)
+                    .then(() => toast.success("Project duplicated."))
+                    .catch((error) =>
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : "Duplicate failed",
+                      ),
+                    );
                 }}
                 onDelete={(id) => {
-                  deleteProject(id);
-                  toast.success("Project deleted.");
+                  void deleteProject(id)
+                    .then(() => toast.success("Project deleted."))
+                    .catch((error) =>
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : "Delete failed",
+                      ),
+                    );
                 }}
               />
             ))}
@@ -144,21 +228,30 @@ function DashboardPage() {
 
         {/* Activity */}
         <div>
-          <h2 className="mb-4 font-display text-lg font-semibold">Recent activity</h2>
+          <h2 className="mb-4 font-display text-lg font-semibold">
+            Recent activity
+          </h2>
           <Card className="border-border/60 bg-card/50 p-2">
             <ul className="divide-y divide-border/60">
-              {MOCK_ACTIVITY.map((a) => (
+              {activity.map((a) => (
                 <li key={a.id} className="flex gap-3 p-3">
                   <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{a.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">{a.description}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {a.description}
+                    </p>
                     <p className="mt-0.5 text-xs text-muted-foreground/70">
                       {formatRelativeTime(a.timestamp)}
                     </p>
                   </div>
                 </li>
               ))}
+              {activity.length === 0 && (
+                <li className="p-5 text-center text-sm text-muted-foreground">
+                  Project activity will appear after your first change.
+                </li>
+              )}
             </ul>
           </Card>
         </div>
