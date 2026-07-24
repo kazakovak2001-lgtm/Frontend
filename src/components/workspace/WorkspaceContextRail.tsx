@@ -12,6 +12,11 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { WorkspaceReadModel } from "@/services/workspaceReadModel";
 import type { WorkspaceStage } from "@/components/workspace/WorkspaceWorkflowRail";
+import {
+  buildWorkspaceBlockers,
+  describeWorkspaceRun,
+  getWorkspaceNextAction,
+} from "@/components/workspace/workspaceLogic";
 import { cn } from "@/lib/utils";
 
 interface ActivityEntry {
@@ -46,13 +51,16 @@ export function WorkspaceContextRail({
   onRefresh: () => void;
   onStageChange: (stage: WorkspaceStage) => void;
 }) {
-  const blockers = buildBlockers(workspace);
-  const nextAction = getNextAction(workspace, activeStage);
+  const blockers = buildWorkspaceBlockers(workspace);
+  const nextAction = getWorkspaceNextAction(workspace, activeStage);
   const status = runStatus ?? workspace?.latestExecution?.status ?? projectStatus;
   const activity = recentActivity.slice(-4).reverse();
 
   return (
-    <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start" aria-label="Workspace context">
+    <aside
+      className="space-y-4 xl:sticky xl:top-6 xl:self-start"
+      aria-label="Workspace context"
+    >
       <Card className="border-border/60 bg-card/60 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -76,7 +84,7 @@ export function WorkspaceContextRail({
           </Badge>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          {currentStep || describeRun(status)}
+          {currentStep || describeWorkspaceRun(status)}
         </p>
         <div className="mt-4">
           <div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground">
@@ -126,7 +134,9 @@ export function WorkspaceContextRail({
             aria-label="Refresh workspace context"
             onClick={onRefresh}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+            />
           </Button>
         </div>
         <div className="mt-3 space-y-2">
@@ -192,84 +202,6 @@ export function WorkspaceContextRail({
       </Card>
     </aside>
   );
-}
-
-function buildBlockers(workspace?: WorkspaceReadModel): string[] {
-  if (!workspace) return ["Workspace data has not loaded yet."];
-
-  const blockers: string[] = [];
-  if (!workspace.readiness.hasBlueprint) {
-    blockers.push("A durable blueprint has not been generated.");
-  }
-  if (
-    workspace.readiness.hasExecution &&
-    !workspace.readiness.hasCompletedExecution
-  ) {
-    blockers.push("The latest generation execution is not complete.");
-  }
-  if (!workspace.readiness.studioConnected) {
-    blockers.push("Roblox Studio is not connected to this project.");
-  }
-  if (!workspace.readiness.studioArtifactVerified) {
-    blockers.push("Real generated-artifact delivery is pending STUDIO-1 verification.");
-  }
-  if (workspace.latestExecution?.error_message) {
-    blockers.push(workspace.latestExecution.error_message);
-  }
-  blockers.push(...workspace.degradedSources);
-  return blockers.slice(0, 4);
-}
-
-function getNextAction(
-  workspace: WorkspaceReadModel | undefined,
-  activeStage: WorkspaceStage,
-): { stage: WorkspaceStage; title: string; description: string } {
-  if (!workspace?.readiness.hasBlueprint) {
-    return {
-      stage: "define",
-      title: "Complete the project definition",
-      description: "Confirm the brief and generate the first durable blueprint.",
-    };
-  }
-  if (!workspace.readiness.hasCompletedExecution) {
-    return {
-      stage: "generate",
-      title: "Complete a generation run",
-      description: "Start or inspect the execution until a completed package exists.",
-    };
-  }
-  if (activeStage !== "validate" && workspace.readiness.canValidate) {
-    return {
-      stage: "validate",
-      title: "Validate the generated experience",
-      description: "Run governance, simulation, economy and quality checks.",
-    };
-  }
-  if (!workspace.readiness.studioConnected) {
-    return {
-      stage: "integrate",
-      title: "Connect Roblox Studio",
-      description: "Review the package and establish the Studio bridge.",
-    };
-  }
-  return {
-    stage: "operate",
-    title: "Review project operations",
-    description: "Inspect durable history, system health and project settings.",
-  };
-}
-
-function describeRun(status: string): string {
-  if (["running", "starting", "generation_started", "pending_start"].includes(status)) {
-    return "The generation pipeline is active.";
-  }
-  if (["completed", "ready", "exported"].includes(status)) {
-    return "The latest known run completed successfully.";
-  }
-  if (["failed", "error"].includes(status)) {
-    return "The latest known run needs attention.";
-  }
-  return "No active generation run is reported.";
 }
 
 function stageLabel(stage: WorkspaceStage): string {

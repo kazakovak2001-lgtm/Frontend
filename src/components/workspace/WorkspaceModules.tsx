@@ -32,30 +32,15 @@ import {
   ModuleResultStatus,
   WorkspaceModuleResult,
 } from "@/components/workspace/WorkspaceModuleResult";
+import {
+  getWorkspaceModuleKeys,
+  WORKSPACE_MODULE_KEYS,
+  type WorkspaceModuleKey as ModuleKey,
+  type WorkspaceModuleStage,
+} from "@/components/workspace/workspaceLogic";
 import { toast } from "sonner";
 
-export type WorkspaceModuleStage =
-  | "define"
-  | "generate"
-  | "validate"
-  | "integrate"
-  | "operate";
-
-type ModuleKey =
-  | "system"
-  | "analytics"
-  | "knowledge"
-  | "simulation"
-  | "economy"
-  | "controller"
-  | "design"
-  | "planning"
-  | "build"
-  | "world"
-  | "quality"
-  | "memory"
-  | "operations"
-  | "versions";
+export type { WorkspaceModuleStage } from "@/components/workspace/workspaceLogic";
 
 type ModuleState = {
   loading: boolean;
@@ -72,33 +57,8 @@ interface ToolDefinition {
   wide?: boolean;
 }
 
-const ALL_MODULES: readonly ModuleKey[] = [
-  "system",
-  "analytics",
-  "knowledge",
-  "simulation",
-  "economy",
-  "controller",
-  "design",
-  "planning",
-  "build",
-  "world",
-  "quality",
-  "memory",
-  "operations",
-  "versions",
-];
-
-const STAGE_MODULES: Record<WorkspaceModuleStage, readonly ModuleKey[]> = {
-  define: ["knowledge", "design", "memory"],
-  generate: ["planning", "build"],
-  validate: ["controller", "simulation", "economy", "world", "quality"],
-  integrate: ["versions"],
-  operate: ["system", "analytics", "operations"],
-};
-
 const EMPTY_STATE: Record<ModuleKey, ModuleState> = Object.fromEntries(
-  ALL_MODULES.map((key) => [key, { loading: false }]),
+  WORKSPACE_MODULE_KEYS.map((key) => [key, { loading: false }]),
 ) as Record<ModuleKey, ModuleState>;
 
 /**
@@ -115,7 +75,7 @@ export function WorkspaceModules({
 }) {
   const [states, setStates] = useState(EMPTY_STATE);
   const visibleModules = useMemo(
-    () => new Set(stage ? STAGE_MODULES[stage] : ALL_MODULES),
+    () => new Set(getWorkspaceModuleKeys(stage)),
     [stage],
   );
 

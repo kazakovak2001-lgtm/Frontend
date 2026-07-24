@@ -1,28 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-interface ResultHighlight {
-  label: string;
-  value: string;
-}
-
-const PRIORITY_KEYS = [
-  "status",
-  "success",
-  "connected",
-  "healthy",
-  "qualityScore",
-  "score",
-  "progress",
-  "count",
-  "total",
-  "durationMs",
-  "version",
-  "message",
-  "warnings",
-  "errors",
-  "recommendations",
-] as const;
+import { summarizeWorkspaceResult } from "@/components/workspace/workspaceLogic";
 
 /**
  * Converts heterogeneous backend module payloads into a stable operational
@@ -30,7 +8,7 @@ const PRIORITY_KEYS = [
  * inspector instead of being the primary user interface.
  */
 export function WorkspaceModuleResult({ data }: { data: unknown }) {
-  const highlights = summarizeResult(data);
+  const highlights = summarizeWorkspaceResult(data);
 
   return (
     <div className="space-y-3">
@@ -63,74 +41,6 @@ export function WorkspaceModuleResult({ data }: { data: unknown }) {
   );
 }
 
-function summarizeResult(data: unknown): ResultHighlight[] {
-  if (Array.isArray(data)) {
-    return [
-      { label: "Items", value: String(data.length) },
-      ...summarizeArraySample(data),
-    ];
-  }
-
-  if (!isRecord(data)) {
-    return [{ label: "Result", value: formatValue(data) }];
-  }
-
-  const selected: ResultHighlight[] = [];
-  const used = new Set<string>();
-
-  for (const key of PRIORITY_KEYS) {
-    if (!(key in data)) continue;
-    selected.push({ label: humanize(key), value: formatValue(data[key]) });
-    used.add(key);
-    if (selected.length >= 6) return selected;
-  }
-
-  for (const [key, value] of Object.entries(data)) {
-    if (used.has(key)) continue;
-    selected.push({ label: humanize(key), value: formatValue(value) });
-    if (selected.length >= 6) break;
-  }
-
-  return selected.length
-    ? selected
-    : [{ label: "Result", value: "Operation completed" }];
-}
-
-function summarizeArraySample(data: unknown[]): ResultHighlight[] {
-  const first = data[0];
-  if (!isRecord(first)) return [];
-
-  const identifier = first.name ?? first.title ?? first.id ?? first.status;
-  return identifier === undefined
-    ? []
-    : [{ label: "First item", value: formatValue(identifier) }];
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return "Not reported";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "—";
-  if (typeof value === "string") return value || "Empty";
-  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? "" : "s"}`;
-  if (isRecord(value)) {
-    const status = value.status ?? value.message ?? value.name ?? value.id;
-    if (status !== undefined) return formatValue(status);
-    return `${Object.keys(value).length} fields`;
-  }
-  return String(value);
-}
-
-function humanize(value: string): string {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replaceAll("_", " ")
-    .replace(/^./, (character) => character.toUpperCase());
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 export function ModuleResultStatus({
   loading,
   error,
@@ -140,7 +50,13 @@ export function ModuleResultStatus({
   error?: string;
   hasData: boolean;
 }) {
-  const label = loading ? "Running" : error ? "Error" : hasData ? "Complete" : "Ready";
+  const label = loading
+    ? "Running"
+    : error
+      ? "Error"
+      : hasData
+        ? "Complete"
+        : "Ready";
 
   return (
     <Badge
