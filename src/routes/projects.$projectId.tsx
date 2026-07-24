@@ -198,7 +198,7 @@ function ProjectDetailPage() {
 
         {/* Chat */}
         <TabsContent value="chat">
-          <ChatPanel />
+              <ChatPanel projectId={projectId} />
         </TabsContent>
 
         {/* Agents */}
