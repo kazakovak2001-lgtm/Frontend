@@ -13,7 +13,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "test:workspace": "node --experimental-strip-types --test tests/workspaceLogic.test.ts",
-    "test:workspace:responsive": "node scripts/qa/workspace-responsive.mjs",
+    "test:workspace:responsive": "node scripts/qa/workspace-responsive-qa.mjs",
     "test:e2e:integration": "node scripts/e2e-backend.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
