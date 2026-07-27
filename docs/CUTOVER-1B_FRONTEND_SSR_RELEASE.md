@@ -1,6 +1,6 @@
 # CUTOVER-1B — Frontend SSR Release Artifact
 
-**Status:** In implementation  
+**Status:** Complete  
 **Tracking issue:** #11  
 **Baseline:** `main` at `a8d005d433d48e18d8e64ac176ee63c9c694b644`
 
@@ -31,23 +31,35 @@ The Frontend image:
 
 `VITE_API_URL` and `VITE_SOCKET_URL` remain build-time values because the existing API and realtime clients read them through `import.meta.env`. Changing that contract is outside this slice.
 
-## Validation contract
+## Production-only finding
 
-The focused pull request must prove:
+The first release-image smoke run proved that the image built, the container started, and `/health` was healthy, but the root SSR document failed. The shared asset handler treated `/` as the `.output/public` directory and attempted to read that directory as a file before the request could reach the worker.
 
-- TypeScript passes;
-- Workspace logic tests pass;
-- the production `.output` build passes;
-- existing responsive QA still passes through the extracted shared adapter;
-- the Frontend Docker image builds;
-- the production container starts;
-- `GET /health` returns HTTP 200 with a frontend healthy payload;
-- `GET /` returns HTTP 200 and an HTML document;
-- the aggregate Frontend Merge Gate passes.
+The fix keeps one shared boundary for QA and production:
+
+- the public root itself is never treated as a file;
+- directory paths and `EISDIR` results fall through to the SSR worker;
+- regular public files continue to use the existing protected asset-serving path.
+
+No route, UI, API client, realtime client, or authentication behavior changed.
+
+## Validation result
+
+Frontend CI run #64 (`30306526291`) proved the complete CUTOVER-1B boundary:
+
+- TypeScript Check passed;
+- Workspace Logic Tests passed;
+- Production Build passed and published `.output`;
+- Frontend Docker image built successfully;
+- the production container started as the configured non-root user;
+- `GET /health` returned HTTP 200 with `roblox-ai-studio-frontend` healthy status;
+- `GET /` returned HTTP 200 with an HTML Roblox AI Studio document;
+- Responsive Workspace QA passed at desktop, tablet, and mobile widths through the extracted shared adapter;
+- aggregate Frontend Merge Gate passed.
 
 ## Follow-up boundary
 
-CUTOVER-1B does not compose the Frontend and backend release artifacts. The next slice must define:
+CUTOVER-1B does not compose the Frontend and backend release artifacts. The next slice is **CUTOVER-1C — cross-repository release composition** and must define:
 
 - deploy-time origins and TLS termination;
 - backend CORS `FRONTEND_URL`;
@@ -55,6 +67,8 @@ CUTOVER-1B does not compose the Frontend and backend release artifacts. The next
 - cookie domain and secure-cookie behavior;
 - authenticated REST and Socket.IO smoke tests;
 - rollback to the independently verified CUTOVER-1A and CUTOVER-1B artifacts.
+
+Legacy frontend removal remains prohibited until the composed release topology passes and the final cleanup gates in the backend cutover plan are satisfied.
 
 ## Rollback
 
