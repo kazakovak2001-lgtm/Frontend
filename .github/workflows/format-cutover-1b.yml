@@ -22,8 +22,6 @@ jobs:
         run: |
           npx prettier --write \
             .github/workflows/ci.yml \
-            Dockerfile \
-            .dockerignore \
             package.json \
             scripts/runtime/frontend-node-server.mjs \
             scripts/runtime/serve-frontend.mjs \
