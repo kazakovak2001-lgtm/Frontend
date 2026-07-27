@@ -118,7 +118,7 @@ async function servePublicAsset({
     `.${decodeURIComponent(pathname)}`,
   );
   if (
-    candidate !== publicRoot &&
+    candidate === publicRoot ||
     !candidate.startsWith(`${publicRoot}${path.sep}`)
   ) {
     return false;
@@ -132,8 +132,13 @@ async function servePublicAsset({
     response.end(request.method === "HEAD" ? undefined : content);
     return true;
   } catch (error) {
-    if (error && typeof error === "object" && error.code === "ENOENT")
+    if (
+      error &&
+      typeof error === "object" &&
+      (error.code === "ENOENT" || error.code === "EISDIR")
+    ) {
       return false;
+    }
     throw error;
   }
 }
