@@ -12,6 +12,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "start": "node scripts/runtime/serve-frontend.mjs",
     "test:workspace": "node --experimental-strip-types --test tests/workspaceLogic.test.ts",
     "test:e2e:integration": "node scripts/e2e-backend.mjs",
     "lint": "eslint .",
