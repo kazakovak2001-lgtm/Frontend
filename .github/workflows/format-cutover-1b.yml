@@ -1,85 +1,23 @@
-name: Prepare CUTOVER-1B Files
+name: Format CUTOVER-1B Files
 
 on:
-  push:
+  pull_request:
     branches:
-      - cutover/frontend-ssr-release
-  workflow_dispatch:
+      - main
 
 permissions:
-  contents: write
-
-concurrency:
-  group: cutover-1b-prepare-${{ github.ref }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  prepare:
+  format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: cutover/frontend-ssr-release
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - name: Reuse shared Node adapter in responsive QA
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("scripts/qa/workspace-responsive-qa.mjs")
-          source = path.read_text()
-
-          replacements = [
-              (
-                  'import { mkdir, readFile, writeFile } from "node:fs/promises";',
-                  'import { mkdir, writeFile } from "node:fs/promises";',
-              ),
-              ('import { Readable } from "node:stream";\n', ''),
-              (
-                  'import worker from "../../.output/server/index.mjs";',
-                  'import worker from "../../.output/server/index.mjs";\nimport {\n  closeServer,\n  createFrontendServer,\n  listenServer,\n} from "../runtime/frontend-node-server.mjs";',
-              ),
-              (
-                  'const backendServer = await listen(createMockBackend(), BACKEND_PORT);\nconst frontendServer = await listen(createFrontendServer(), FRONTEND_PORT);',
-                  'const backendServer = await listenServer(createMockBackend(), {\n  port: BACKEND_PORT,\n  host: "127.0.0.1",\n});\nconst frontendServer = await listenServer(\n  createFrontendServer({\n    worker,\n    origin: FRONTEND_ORIGIN,\n    publicRoot: PUBLIC_ROOT,\n    cacheControl: "no-store",\n  }),\n  { port: FRONTEND_PORT, host: "127.0.0.1" },\n);',
-              ),
-              (
-                  '  await close(frontendServer);\n  await close(backendServer);',
-                  '  await closeServer(frontendServer);\n  await closeServer(backendServer);',
-              ),
-          ]
-
-          for old, new in replacements:
-              if old in source:
-                  source = source.replace(old, new, 1)
-              elif new not in source:
-                  raise SystemExit(f"Required QA anchor not found: {old[:80]}")
-
-          adapter_start = 'function createFrontendServer() {'
-          mock_start = 'function createMockBackend() {'
-          if adapter_start in source:
-              start = source.index(adapter_start)
-              end = source.index(mock_start)
-              source = source[:start] + source[end:]
-          elif mock_start not in source:
-              raise SystemExit("Mock backend anchor not found")
-
-          listen_start = 'function listen(server, port) {'
-          serialize_start = 'function serializeError(error) {'
-          if listen_start in source:
-              start = source.index(listen_start)
-              end = source.index(serialize_start)
-              source = source[:start] + source[end:]
-          elif serialize_start not in source:
-              raise SystemExit("Serialize anchor not found")
-
-          path.write_text(source)
-          PY
       - name: Format CUTOVER-1B files
         run: |
           npx prettier --write \
@@ -96,22 +34,19 @@ jobs:
           node --check scripts/runtime/frontend-node-server.mjs
           node --check scripts/runtime/serve-frontend.mjs
           node --check scripts/qa/workspace-responsive-qa.mjs
-      - name: Commit prepared files when required
-        run: |
-          if git diff --quiet; then
-            echo "CUTOVER-1B files already prepared."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            .github/workflows/ci.yml \
-            Dockerfile \
-            .dockerignore \
-            package.json \
-            scripts/runtime/frontend-node-server.mjs \
-            scripts/runtime/serve-frontend.mjs \
-            scripts/qa/workspace-responsive-qa.mjs \
+      - name: Publish formatted files
+        uses: actions/upload-artifact@v4
+        with:
+          name: cutover-1b-formatted-${{ github.event.pull_request.head.sha }}
+          path: |
+            .github/workflows/ci.yml
+            Dockerfile
+            .dockerignore
+            package.json
+            scripts/runtime/frontend-node-server.mjs
+            scripts/runtime/serve-frontend.mjs
+            scripts/qa/workspace-responsive-qa.mjs
             docs/CUTOVER-1B_FRONTEND_SSR_RELEASE.md
-          git commit -m "feat(cutover): reuse frontend node runtime adapter"
-          git push origin HEAD:cutover/frontend-ssr-release
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
