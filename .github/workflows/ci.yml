@@ -149,7 +149,6 @@ jobs:
   gate:
     name: Merge Gate
     runs-on: ubuntu-latest
-    needs:
-      [typecheck, workspace-tests, build, responsive-qa, frontend-image]
+    needs: [typecheck, workspace-tests, build, responsive-qa, frontend-image]
     steps:
       - run: echo "All Frontend checks passed"
