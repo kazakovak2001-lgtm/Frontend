@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - cutover/frontend-ssr-release
+  workflow_dispatch:
 
 permissions:
   contents: write
