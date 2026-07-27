@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { Readable } from "node:stream";
 import { chromium } from "playwright";
 import worker from "../../.output/server/index.mjs";
+import {
+  closeServer,
+  createFrontendServer,
+  listenServer,
+} from "../runtime/frontend-node-server.mjs";
 
 const FRONTEND_PORT = 4173;
 const BACKEND_PORT = 5000;
@@ -143,8 +147,19 @@ const cases = [
 ];
 
 await mkdir(ARTIFACT_DIR, { recursive: true });
-const backendServer = await listen(createMockBackend(), BACKEND_PORT);
-const frontendServer = await listen(createFrontendServer(), FRONTEND_PORT);
+const backendServer = await listenServer(createMockBackend(), {
+  port: BACKEND_PORT,
+  host: "127.0.0.1",
+});
+const frontendServer = await listenServer(
+  createFrontendServer({
+    worker,
+    origin: FRONTEND_ORIGIN,
+    publicRoot: PUBLIC_ROOT,
+    cacheControl: "no-store",
+  }),
+  { port: FRONTEND_PORT, host: "127.0.0.1" },
+);
 const browser = await chromium.launch({ headless: true });
 const results = [];
 let failure;
@@ -181,8 +196,8 @@ try {
     ),
   );
   await browser.close();
-  await close(frontendServer);
-  await close(backendServer);
+  await closeServer(frontendServer);
+  await closeServer(backendServer);
 }
 
 if (failure) throw failure;
@@ -213,14 +228,18 @@ async function inspectViewport(browserInstance, testCase) {
       .getByRole("heading", { name: project.name })
       .waitFor({ timeout: 45_000 });
     await page.getByRole("heading", { name: testCase.stageHeading }).waitFor();
-    await page.getByText(testCase.expectedToolHeading, { exact: true }).waitFor();
+    await page
+      .getByText(testCase.expectedToolHeading, { exact: true })
+      .waitFor();
     await page.addStyleTag({
       content:
         "*,*::before,*::after{animation:none!important;transition:none!important}",
     });
 
     const metrics = await page.evaluate(() => {
-      const workflow = document.querySelector('nav[aria-label="Project workflow"]');
+      const workflow = document.querySelector(
+        'nav[aria-label="Project workflow"]',
+      );
       const contextRail = document.querySelector(
         'aside[aria-label="Workspace context"]',
       );
@@ -228,11 +247,15 @@ async function inspectViewport(browserInstance, testCase) {
         'section[aria-labelledby$="-stage-title"]',
       );
       if (!workflow || !contextRail || !stageCanvas) {
-        throw new Error("Workspace workflow, stage canvas, or context rail is missing");
+        throw new Error(
+          "Workspace workflow, stage canvas, or context rail is missing",
+        );
       }
 
       const buttons = [...workflow.querySelectorAll("button")];
-      const buttonRects = buttons.map((button) => button.getBoundingClientRect());
+      const buttonRects = buttons.map((button) =>
+        button.getBoundingClientRect(),
+      );
       const rowPositions = [];
       for (const rect of buttonRects) {
         if (!rowPositions.some((value) => Math.abs(value - rect.top) < 3)) {
@@ -255,7 +278,8 @@ async function inspectViewport(browserInstance, testCase) {
         workflowButtonCount: buttons.length,
         workflowRows: rowPositions.length,
         workflowWithinViewport:
-          workflowRect.left >= -1 && workflowRect.right <= window.innerWidth + 1,
+          workflowRect.left >= -1 &&
+          workflowRect.right <= window.innerWidth + 1,
         allWorkflowButtonsVisible: buttonRects.every(
           (rect) =>
             rect.width > 0 &&
@@ -263,7 +287,9 @@ async function inspectViewport(browserInstance, testCase) {
             rect.right <= window.innerWidth + 1,
         ),
         activeStage:
-          workflow.querySelector('[aria-current="step"]')?.textContent?.trim() ?? "",
+          workflow
+            .querySelector('[aria-current="step"]')
+            ?.textContent?.trim() ?? "",
         canvas: toRect(canvasRect),
         contextRail: toRect(railRect),
       };
@@ -377,82 +403,6 @@ async function inspectViewport(browserInstance, testCase) {
   }
 }
 
-function createFrontendServer() {
-  return createServer(async (request, response) => {
-    try {
-      const url = new URL(request.url ?? "/", FRONTEND_ORIGIN);
-      if (await servePublicAsset(request, response, url.pathname)) return;
-
-      const headers = new Headers();
-      for (const [name, value] of Object.entries(request.headers)) {
-        if (Array.isArray(value)) {
-          value.forEach((item) => headers.append(name, item));
-        } else if (value !== undefined) {
-          headers.set(name, value);
-        }
-      }
-      const hasBody = !["GET", "HEAD"].includes(request.method ?? "GET");
-      const workerResponse = await worker.fetch(
-        new Request(url, {
-          method: request.method,
-          headers,
-          body: hasBody ? Readable.toWeb(request) : undefined,
-          duplex: hasBody ? "half" : undefined,
-        }),
-        {},
-        { waitUntil() {}, passThroughOnException() {} },
-      );
-
-      response.statusCode = workerResponse.status;
-      workerResponse.headers.forEach((value, name) =>
-        response.setHeader(name, value),
-      );
-      if (workerResponse.body) Readable.fromWeb(workerResponse.body).pipe(response);
-      else response.end();
-    } catch (error) {
-      response.statusCode = 500;
-      response.setHeader("content-type", "text/plain; charset=utf-8");
-      response.end(error instanceof Error ? error.stack : String(error));
-    }
-  });
-}
-
-async function servePublicAsset(request, response, pathname) {
-  if (!["GET", "HEAD"].includes(request.method ?? "GET")) return false;
-  const candidate = path.resolve(PUBLIC_ROOT, `.${decodeURIComponent(pathname)}`);
-  if (candidate !== PUBLIC_ROOT && !candidate.startsWith(`${PUBLIC_ROOT}${path.sep}`)) {
-    return false;
-  }
-  try {
-    const content = await readFile(candidate);
-    response.statusCode = 200;
-    response.setHeader("content-type", contentType(candidate));
-    response.setHeader("cache-control", "no-store");
-    response.end(request.method === "HEAD" ? undefined : content);
-    return true;
-  } catch (error) {
-    if (error && typeof error === "object" && error.code === "ENOENT") return false;
-    throw error;
-  }
-}
-
-function contentType(filename) {
-  return (
-    {
-      ".css": "text/css; charset=utf-8",
-      ".js": "text/javascript; charset=utf-8",
-      ".json": "application/json; charset=utf-8",
-      ".png": "image/png",
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".svg": "image/svg+xml",
-      ".webp": "image/webp",
-      ".woff": "font/woff",
-      ".woff2": "font/woff2",
-    }[path.extname(filename).toLowerCase()] ?? "application/octet-stream"
-  );
-}
-
 function createMockBackend() {
   return createServer((request, response) => {
     const origin = request.headers.origin ?? FRONTEND_ORIGIN;
@@ -525,17 +475,6 @@ function createMockBackend() {
     response.statusCode = 200;
     response.end(JSON.stringify({ success: true, data }));
   });
-}
-
-function listen(server, port) {
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve(server));
-  });
-}
-
-function close(server) {
-  return new Promise((resolve) => server.close(() => resolve()));
 }
 
 function serializeError(error) {

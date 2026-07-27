@@ -89,3 +89,66 @@ jobs:
           path: artifacts/workspace-responsive
           if-no-files-found: warn
           retention-days: 14
+
+  frontend-image:
+    name: Frontend Release Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Frontend image
+        run: |
+          docker build \
+            --build-arg VITE_API_URL=http://127.0.0.1:5000/api \
+            --build-arg VITE_SOCKET_URL=http://127.0.0.1:5000 \
+            --tag roblox-ai-studio-frontend:cutover \
+            .
+      - name: Start Frontend container
+        run: |
+          docker run --detach \
+            --name roblox-ai-studio-frontend-cutover \
+            --publish 4180:3000 \
+            --env PORT=3000 \
+            --env HOST=0.0.0.0 \
+            --env PUBLIC_ORIGIN=http://127.0.0.1:4180 \
+            roblox-ai-studio-frontend:cutover
+      - name: Verify Frontend health and SSR document
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4180/health > frontend-health.json; then
+              grep --quiet '"status":"healthy"' frontend-health.json
+              grep --quiet '"service":"roblox-ai-studio-frontend"' frontend-health.json
+              break
+            fi
+            sleep 1
+          done
+          test -s frontend-health.json
+          curl --fail --silent --show-error http://127.0.0.1:4180/ > frontend-index.html
+          grep --ignore-case --quiet '<html' frontend-index.html
+          grep --ignore-case --quiet 'Roblox AI Studio' frontend-index.html
+      - name: Capture Frontend container logs
+        if: always()
+        run: docker logs roblox-ai-studio-frontend-cutover > frontend-container.log 2>&1 || true
+      - name: Publish Frontend container diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-container-diagnostics-${{ github.sha }}
+          path: |
+            frontend-health.json
+            frontend-index.html
+            frontend-container.log
+          if-no-files-found: warn
+          retention-days: 1
+      - name: Print Frontend logs on failure
+        if: failure()
+        run: cat frontend-container.log || true
+      - name: Stop Frontend container
+        if: always()
+        run: docker rm --force roblox-ai-studio-frontend-cutover || true
+
+  gate:
+    name: Merge Gate
+    runs-on: ubuntu-latest
+    needs: [typecheck, workspace-tests, build, responsive-qa, frontend-image]
+    steps:
+      - run: echo "All Frontend checks passed"
