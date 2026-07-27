@@ -228,14 +228,18 @@ async function inspectViewport(browserInstance, testCase) {
       .getByRole("heading", { name: project.name })
       .waitFor({ timeout: 45_000 });
     await page.getByRole("heading", { name: testCase.stageHeading }).waitFor();
-    await page.getByText(testCase.expectedToolHeading, { exact: true }).waitFor();
+    await page
+      .getByText(testCase.expectedToolHeading, { exact: true })
+      .waitFor();
     await page.addStyleTag({
       content:
         "*,*::before,*::after{animation:none!important;transition:none!important}",
     });
 
     const metrics = await page.evaluate(() => {
-      const workflow = document.querySelector('nav[aria-label="Project workflow"]');
+      const workflow = document.querySelector(
+        'nav[aria-label="Project workflow"]',
+      );
       const contextRail = document.querySelector(
         'aside[aria-label="Workspace context"]',
       );
@@ -243,11 +247,15 @@ async function inspectViewport(browserInstance, testCase) {
         'section[aria-labelledby$="-stage-title"]',
       );
       if (!workflow || !contextRail || !stageCanvas) {
-        throw new Error("Workspace workflow, stage canvas, or context rail is missing");
+        throw new Error(
+          "Workspace workflow, stage canvas, or context rail is missing",
+        );
       }
 
       const buttons = [...workflow.querySelectorAll("button")];
-      const buttonRects = buttons.map((button) => button.getBoundingClientRect());
+      const buttonRects = buttons.map((button) =>
+        button.getBoundingClientRect(),
+      );
       const rowPositions = [];
       for (const rect of buttonRects) {
         if (!rowPositions.some((value) => Math.abs(value - rect.top) < 3)) {
@@ -270,7 +278,8 @@ async function inspectViewport(browserInstance, testCase) {
         workflowButtonCount: buttons.length,
         workflowRows: rowPositions.length,
         workflowWithinViewport:
-          workflowRect.left >= -1 && workflowRect.right <= window.innerWidth + 1,
+          workflowRect.left >= -1 &&
+          workflowRect.right <= window.innerWidth + 1,
         allWorkflowButtonsVisible: buttonRects.every(
           (rect) =>
             rect.width > 0 &&
@@ -278,7 +287,9 @@ async function inspectViewport(browserInstance, testCase) {
             rect.right <= window.innerWidth + 1,
         ),
         activeStage:
-          workflow.querySelector('[aria-current="step"]')?.textContent?.trim() ?? "",
+          workflow
+            .querySelector('[aria-current="step"]')
+            ?.textContent?.trim() ?? "",
         canvas: toRect(canvasRect),
         contextRail: toRect(railRect),
       };
