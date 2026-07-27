@@ -13,7 +13,9 @@ export function createFrontendServer({
   cacheControl = "no-store",
 }) {
   if (!worker || typeof worker.fetch !== "function") {
-    throw new TypeError("Frontend worker must expose fetch(request, env, context)");
+    throw new TypeError(
+      "Frontend worker must expose fetch(request, env, context)",
+    );
   }
   if (!origin) throw new TypeError("Frontend origin is required");
   if (!publicRoot) throw new TypeError("Frontend public root is required");
@@ -64,7 +66,8 @@ export function createFrontendServer({
       workerResponse.headers.forEach((value, name) =>
         response.setHeader(name, value),
       );
-      if (workerResponse.body) Readable.fromWeb(workerResponse.body).pipe(response);
+      if (workerResponse.body)
+        Readable.fromWeb(workerResponse.body).pipe(response);
       else response.end();
     } catch (error) {
       response.statusCode = 500;
@@ -110,8 +113,14 @@ async function servePublicAsset({
 }) {
   if (!["GET", "HEAD"].includes(request.method ?? "GET")) return false;
 
-  const candidate = path.resolve(publicRoot, `.${decodeURIComponent(pathname)}`);
-  if (candidate !== publicRoot && !candidate.startsWith(`${publicRoot}${path.sep}`)) {
+  const candidate = path.resolve(
+    publicRoot,
+    `.${decodeURIComponent(pathname)}`,
+  );
+  if (
+    candidate !== publicRoot &&
+    !candidate.startsWith(`${publicRoot}${path.sep}`)
+  ) {
     return false;
   }
 
@@ -123,7 +132,8 @@ async function servePublicAsset({
     response.end(request.method === "HEAD" ? undefined : content);
     return true;
   } catch (error) {
-    if (error && typeof error === "object" && error.code === "ENOENT") return false;
+    if (error && typeof error === "object" && error.code === "ENOENT")
+      return false;
     throw error;
   }
 }
