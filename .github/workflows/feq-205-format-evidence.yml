@@ -1,4 +1,4 @@
-name: FEQ-205 Formatting Evidence
+name: FEQ-205 Formatting Evidence v2
 
 on:
   pull_request:
