@@ -1,14 +1,107 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { io } from "socket.io-client";
 
+const EXPECTED_CHECK_COUNT = 40;
 const apiBase = (
   process.env.E2E_API_URL ?? "http://127.0.0.1:5000/api"
 ).replace(/\/$/, "");
 const socketBase = process.env.E2E_SOCKET_URL ?? new URL(apiBase).origin;
+const evidencePath = process.env.E2E_EVIDENCE_PATH;
+const suiteStartedAt = new Date();
 const cookies = new Map();
 const completedChecks = [];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function contractMetadata() {
+  return {
+    contract: "INT-201",
+    expectedCheckCount: EXPECTED_CHECK_COUNT,
+    backendSha: process.env.E2E_BACKEND_SHA ?? null,
+    frontendSha: process.env.E2E_FRONTEND_SHA ?? null,
+    runtime: {
+      contractMode: process.env.E2E_CONTRACT_MODE ?? "local",
+      nodeEnv: process.env.E2E_BACKEND_NODE_ENV ?? null,
+      storageProvider: process.env.E2E_STORAGE_PROVIDER ?? null,
+      frontendOrigin: process.env.E2E_FRONTEND_ORIGIN ?? null,
+      apiUrl: apiBase,
+      socketUrl: socketBase,
+      nodeVersion: process.version,
+    },
+    ci: {
+      repository: process.env.GITHUB_REPOSITORY ?? null,
+      runId: process.env.GITHUB_RUN_ID ?? null,
+      runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+      workflow: process.env.GITHUB_WORKFLOW ?? null,
+    },
+  };
+}
+
+function assertProtectedProductionContract() {
+  if (process.env.E2E_CONTRACT_MODE !== "production") return;
+
+  for (const [name, value] of [
+    ["E2E_BACKEND_SHA", process.env.E2E_BACKEND_SHA],
+    ["E2E_FRONTEND_SHA", process.env.E2E_FRONTEND_SHA],
+  ]) {
+    assert(
+      /^[0-9a-f]{40}$/i.test(value ?? ""),
+      `${name} must identify an exact 40-character commit SHA`,
+    );
+  }
+  assert(
+    process.env.E2E_BACKEND_NODE_ENV === "production",
+    "Protected contract requires E2E_BACKEND_NODE_ENV=production",
+  );
+  assert(
+    Boolean(process.env.E2E_STORAGE_PROVIDER),
+    "Protected contract requires an explicit E2E_STORAGE_PROVIDER",
+  );
+  assert(
+    Boolean(process.env.E2E_FRONTEND_ORIGIN),
+    "Protected contract requires an explicit E2E_FRONTEND_ORIGIN",
+  );
+  assert(
+    Boolean(process.env.E2E_API_URL),
+    "Protected contract requires an explicit E2E_API_URL",
+  );
+  assert(
+    Boolean(process.env.E2E_SOCKET_URL),
+    "Protected contract requires an explicit E2E_SOCKET_URL",
+  );
+  assert(
+    Boolean(evidencePath),
+    "Protected contract requires E2E_EVIDENCE_PATH",
+  );
+}
+
+async function writeEvidence(status, error) {
+  if (!evidencePath) return;
+
+  const finishedAt = new Date();
+  const evidence = {
+    schemaVersion: 1,
+    ...contractMetadata(),
+    status,
+    startedAt: suiteStartedAt.toISOString(),
+    finishedAt: finishedAt.toISOString(),
+    durationMs: finishedAt.getTime() - suiteStartedAt.getTime(),
+    completedCheckCount: completedChecks.length,
+    checks: completedChecks,
+    error:
+      error === undefined
+        ? null
+        : {
+            name: error instanceof Error ? error.name : "Error",
+            message: error instanceof Error ? error.message : String(error),
+          },
+  };
+
+  await mkdir(dirname(evidencePath), { recursive: true });
+  await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 }
 
 function rememberCookies(response) {
@@ -125,6 +218,8 @@ async function waitForTerminalStatus(path, label) {
 }
 
 async function main() {
+  assertProtectedProductionContract();
+
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const email = `e2e-${suffix}@example.test`;
   const password = `E2E-${suffix}-Secure!`;
@@ -878,6 +973,11 @@ async function main() {
     await request("/platform/auth/logout", { method: "POST" });
   });
 
+  assert(
+    completedChecks.length === EXPECTED_CHECK_COUNT,
+    `Expected exactly ${EXPECTED_CHECK_COUNT} contract checks, completed ${completedChecks.length}`,
+  );
+
   console.log(
     `\n${completedChecks.length} E2E checks passed in ${completedChecks.reduce(
       (sum, item) => sum + item.durationMs,
@@ -886,7 +986,23 @@ async function main() {
   );
 }
 
-main().catch((error) => {
+async function run() {
+  try {
+    await main();
+    await writeEvidence("passed");
+  } catch (error) {
+    try {
+      await writeEvidence("failed", error);
+    } catch (evidenceError) {
+      console.error(
+        `\nFailed to write E2E evidence: ${evidenceError.stack ?? evidenceError.message ?? evidenceError}`,
+      );
+    }
+    throw error;
+  }
+}
+
+run().catch((error) => {
   console.error(`\nE2E failed: ${error.stack ?? error.message ?? error}`);
   process.exitCode = 1;
 });
