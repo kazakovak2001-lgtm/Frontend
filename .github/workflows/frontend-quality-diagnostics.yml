@@ -1,0 +1,38 @@
+name: Frontend Quality Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Capture quality output
+        run: |
+          mkdir -p artifacts/frontend-quality
+          set +e
+          npm run lint > artifacts/frontend-quality/eslint.log 2>&1
+          lint_status=$?
+          npm run format:check > artifacts/frontend-quality/prettier.log 2>&1
+          format_status=$?
+          printf 'lint=%s\nformat=%s\n' "$lint_status" "$format_status" > artifacts/frontend-quality/status.env
+          exit 0
+      - name: Publish quality diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-quality-diagnostics-${{ github.event.pull_request.head.sha }}
+          path: artifacts/frontend-quality
+          if-no-files-found: error
+          retention-days: 1
