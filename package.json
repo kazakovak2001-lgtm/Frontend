@@ -10,7 +10,6 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "postbuild": "mkdir -p .output/runtime-204-source && cp scripts/e2e-backend.mjs .output/runtime-204-source/e2e-backend.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "start": "node scripts/runtime/serve-frontend.mjs",
@@ -84,7 +83,7 @@
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
-    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-hooks": "^5.2.8",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "nitro": "3.0.260603-beta",
