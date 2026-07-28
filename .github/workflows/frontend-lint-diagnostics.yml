@@ -1,4 +1,4 @@
-name: Frontend Lint Diagnostics
+name: Frontend Lint Diagnostics v2
 
 on:
   pull_request:
