@@ -32,6 +32,15 @@ export default tseslint.config(
           ],
         },
       ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "ImportDeclaration[source.value='lucide-react'] > ImportNamespaceSpecifier",
+          message:
+            "Import Lucide icons by name. Namespace imports include the complete icon registry in client bundles.",
+        },
+      ],
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
