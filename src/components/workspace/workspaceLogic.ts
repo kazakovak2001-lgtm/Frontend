@@ -46,6 +46,9 @@ export interface WorkspaceDecisionContext {
     canValidate: boolean;
     studioConnected: boolean;
     studioArtifactVerified: boolean;
+    studioVerificationStatus:
+      "idle" | "queued" | "delivered" | "acknowledged" | "verified" | "failed";
+    studioVerificationError?: string;
   };
   degradedSources: string[];
   latestExecution?: {
@@ -106,11 +109,8 @@ export function buildWorkspaceBlockers(
   }
   if (!workspace.readiness.studioConnected) {
     blockers.push("Roblox Studio is not connected to this project.");
-  }
-  if (!workspace.readiness.studioArtifactVerified) {
-    blockers.push(
-      "Real generated-artifact delivery is pending STUDIO-1 verification.",
-    );
+  } else if (!workspace.readiness.studioArtifactVerified) {
+    blockers.push(describeStudioVerificationBlocker(workspace.readiness));
   }
   if (workspace.latestExecution?.error_message) {
     blockers.push(workspace.latestExecution.error_message);
@@ -127,7 +127,8 @@ export function getWorkspaceNextAction(
     return {
       stage: "define",
       title: "Complete the project definition",
-      description: "Confirm the brief and generate the first durable blueprint.",
+      description:
+        "Confirm the brief and generate the first durable blueprint.",
     };
   }
   if (!workspace.readiness.hasCompletedExecution) {
@@ -142,8 +143,7 @@ export function getWorkspaceNextAction(
     return {
       stage: "validate",
       title: "Validate the generated experience",
-      description:
-        "Run governance, simulation, economy and quality checks.",
+      description: "Run governance, simulation, economy and quality checks.",
     };
   }
   if (!workspace.readiness.studioConnected) {
@@ -153,12 +153,51 @@ export function getWorkspaceNextAction(
       description: "Review the package and establish the Studio bridge.",
     };
   }
+  if (!workspace.readiness.studioArtifactVerified) {
+    return workspace.readiness.studioVerificationStatus === "failed"
+      ? {
+          stage: "integrate",
+          title: "Resolve Studio verification",
+          description:
+            workspace.readiness.studioVerificationError ??
+            "Review the failed artifact import before release.",
+        }
+      : {
+          stage: "integrate",
+          title: "Complete Studio verification",
+          description:
+            "Sync the generated package and wait for exact artifact receipts.",
+        };
+  }
   return {
     stage: "operate",
     title: "Review project operations",
-    description:
-      "Inspect durable history, system health and project settings.",
+    description: "Inspect durable history, system health and project settings.",
   };
+}
+
+function describeStudioVerificationBlocker(
+  readiness: WorkspaceDecisionContext["readiness"],
+): string {
+  switch (readiness.studioVerificationStatus) {
+    case "failed":
+      return readiness.studioVerificationError
+        ? `Studio artifact verification failed: ${readiness.studioVerificationError}`
+        : "Studio artifact verification failed.";
+    case "acknowledged":
+      return "Roblox Studio is applying generated artifacts; verification is pending.";
+    case "delivered":
+      return "Generated artifacts reached Roblox Studio and await acknowledgement.";
+    case "queued":
+      return "Generated artifacts are queued for Roblox Studio verification.";
+    case "verified":
+      return (
+        readiness.studioVerificationError ??
+        "Studio verification evidence does not match the latest execution."
+      );
+    case "idle":
+      return "Studio artifact verification has not started.";
+  }
 }
 
 export function describeWorkspaceRun(status: string): string {

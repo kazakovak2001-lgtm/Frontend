@@ -728,6 +728,10 @@ async function main() {
       status.status === "disconnected",
       "Studio status should report disconnected without a bridge",
     );
+    assert(
+      status.artifactVerified === false && status.verificationStatus === "idle",
+      "Disconnected Studio status must remain explicitly unverified",
+    );
     const sync = await request(
       `/projects/${project.id}/studio/sync`,
       json("POST", {}),

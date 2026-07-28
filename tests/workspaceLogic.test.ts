@@ -22,6 +22,7 @@ function context(
       canValidate: true,
       studioConnected: true,
       studioArtifactVerified: true,
+      studioVerificationStatus: "verified",
       ...overrides,
     },
     degradedSources: [],
@@ -57,10 +58,8 @@ test("omitting a stage preserves the complete tool inventory", () => {
 test("next action follows the durable workflow gates", () => {
   assert.equal(getWorkspaceNextAction(undefined, "operate").stage, "define");
   assert.equal(
-    getWorkspaceNextAction(
-      context({ hasCompletedExecution: false }),
-      "define",
-    ).stage,
+    getWorkspaceNextAction(context({ hasCompletedExecution: false }), "define")
+      .stage,
     "generate",
   );
   assert.equal(getWorkspaceNextAction(context(), "define").stage, "validate");
@@ -68,6 +67,32 @@ test("next action follows the durable workflow gates", () => {
     getWorkspaceNextAction(context({ studioConnected: false }), "validate")
       .stage,
     "integrate",
+  );
+  assert.deepEqual(
+    getWorkspaceNextAction(
+      context({
+        studioArtifactVerified: false,
+        studioVerificationStatus: "acknowledged",
+      }),
+      "validate",
+    ),
+    {
+      stage: "integrate",
+      title: "Complete Studio verification",
+      description:
+        "Sync the generated package and wait for exact artifact receipts.",
+    },
+  );
+  assert.equal(
+    getWorkspaceNextAction(
+      context({
+        studioArtifactVerified: false,
+        studioVerificationStatus: "failed",
+        studioVerificationError: "Receipt mismatch",
+      }),
+      "validate",
+    ).title,
+    "Resolve Studio verification",
   );
   assert.equal(getWorkspaceNextAction(context(), "validate").stage, "operate");
 });
@@ -85,6 +110,7 @@ test("blockers reflect missing durable and Studio conditions", () => {
       canValidate: false,
       studioConnected: false,
       studioArtifactVerified: false,
+      studioVerificationStatus: "idle",
     },
     degradedSources: ["agent registry: unavailable"],
     latestExecution: {
@@ -97,8 +123,41 @@ test("blockers reflect missing durable and Studio conditions", () => {
     "A durable blueprint has not been generated.",
     "The latest generation execution is not complete.",
     "Roblox Studio is not connected to this project.",
-    "Real generated-artifact delivery is pending STUDIO-1 verification.",
+    "Pipeline failed at compile",
   ]);
+
+  assert.deepEqual(
+    buildWorkspaceBlockers(
+      context({
+        studioArtifactVerified: false,
+        studioVerificationStatus: "delivered",
+      }),
+    ),
+    ["Generated artifacts reached Roblox Studio and await acknowledgement."],
+  );
+  assert.deepEqual(
+    buildWorkspaceBlockers(
+      context({
+        studioArtifactVerified: false,
+        studioVerificationStatus: "failed",
+        studioVerificationError: "Receipt hash did not match.",
+      }),
+    ),
+    ["Studio artifact verification failed: Receipt hash did not match."],
+  );
+  assert.deepEqual(
+    buildWorkspaceBlockers(
+      context({
+        studioArtifactVerified: false,
+        studioVerificationStatus: "verified",
+        studioVerificationError:
+          "Studio verification belongs to execution execution-old; the latest execution is execution-new.",
+      }),
+    ),
+    [
+      "Studio verification belongs to execution execution-old; the latest execution is execution-new.",
+    ],
+  );
   assert.deepEqual(buildWorkspaceBlockers(context()), []);
 });
 

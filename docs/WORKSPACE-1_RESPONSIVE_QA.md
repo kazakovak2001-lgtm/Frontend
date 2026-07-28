@@ -4,6 +4,9 @@
 
 **Status:** Implemented and validated in Frontend CI run #41
 
+> Historical WORKSPACE-1 baseline: FE-201 now extends this same browser gate
+> with a backend-verified Studio fixture and asserts the verified Workspace UI.
+
 ## Objective
 
 Validate the WORKSPACE-1 workflow shell against the exact production `.output` artifact rather than a development server. The gate must prove that the application hydrates with its existing API contracts and remains usable at desktop, tablet, and mobile widths.
@@ -25,11 +28,11 @@ The QA harness introduces no new application API, store, runtime dependency, pac
 
 ## Viewport Evidence
 
-| Scenario | Viewport | Workflow layout | Context rail | Document width | Result |
-| --- | ---: | --- | --- | ---: | --- |
-| Desktop Define | 1440 × 1000 | 5 stages in 1 row | Beside stage canvas | 1440 px | Pass |
-| Tablet Validate | 1024 × 900 | 5 stages in 1 row | Below stage canvas | 1024 px | Pass |
-| Mobile Integrate | 390 × 844 | 5 stacked stages | Below stage canvas | 390 px | Pass |
+| Scenario         |    Viewport | Workflow layout   | Context rail        | Document width | Result |
+| ---------------- | ----------: | ----------------- | ------------------- | -------------: | ------ |
+| Desktop Define   | 1440 × 1000 | 5 stages in 1 row | Beside stage canvas |        1440 px | Pass   |
+| Tablet Validate  |  1024 × 900 | 5 stages in 1 row | Below stage canvas  |        1024 px | Pass   |
+| Mobile Integrate |   390 × 844 | 5 stacked stages  | Below stage canvas  |         390 px | Pass   |
 
 All scenarios confirmed:
 

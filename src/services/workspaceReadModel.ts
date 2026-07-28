@@ -5,6 +5,13 @@ import {
   type GenerationRecord,
   type RealtimeAgent,
 } from "@/services/backendApi";
+import {
+  disconnectedWorkspaceStudioStatus,
+  isWorkspaceStudioArtifactVerified,
+  parseWorkspaceStudioStatus,
+  type WorkspaceStudioStatus,
+  type WorkspaceStudioVerificationStatus,
+} from "@/services/workspaceStudioStatus";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -48,22 +55,15 @@ export interface WorkspaceManifest extends JsonRecord {
   executions: WorkspaceExecution[];
 }
 
-export interface WorkspaceStudioStatus extends JsonRecord {
-  status: "connected" | "disconnected" | "syncing" | "error";
-  studioId?: string;
-  lastSyncAt?: string;
-  bridgeVersion: string;
-  message?: string;
-  pendingChanges: number;
-}
-
 export interface WorkspaceReadiness {
   hasBlueprint: boolean;
   hasExecution: boolean;
   hasCompletedExecution: boolean;
   canValidate: boolean;
   studioConnected: boolean;
-  studioArtifactVerified: false;
+  studioArtifactVerified: boolean;
+  studioVerificationStatus: WorkspaceStudioVerificationStatus;
+  studioVerificationError?: string;
 }
 
 export interface WorkspaceReadModel {
@@ -100,8 +100,10 @@ export async function loadWorkspaceReadModel(
     ),
     loadOptional(
       "Studio status",
-      backendApi.workspace.studio.status(projectId).then(parseStudioStatus),
-      disconnectedStudioStatus(),
+      backendApi.workspace.studio
+        .status(projectId)
+        .then(parseWorkspaceStudioStatus),
+      disconnectedWorkspaceStudioStatus(),
       degradedSources,
     ),
     loadOptional(
@@ -122,6 +124,16 @@ export async function loadWorkspaceReadModel(
   const hasBlueprint = Boolean(manifest?.blueprint);
   const hasExecution = Boolean(latestExecution);
   const hasCompletedExecution = latestExecution?.status === "completed";
+  const studioArtifactVerified = isWorkspaceStudioArtifactVerified(
+    studio,
+    latestExecution?.id,
+  );
+  const studioVerificationError =
+    studio.verificationStatus === "verified" && !studioArtifactVerified
+      ? latestExecution
+        ? `Studio verification belongs to execution ${studio.verifiedExecutionId}; the latest execution is ${latestExecution.id}.`
+        : "Studio verification cannot be linked to a current generation execution."
+      : studio.verificationError;
 
   return {
     projectId,
@@ -137,9 +149,10 @@ export async function loadWorkspaceReadModel(
       hasExecution,
       hasCompletedExecution,
       canValidate: hasBlueprint,
-      studioConnected: studio.status === "connected",
-      // STUDIO-1 owns proof that Studio receives real generated artifacts.
-      studioArtifactVerified: false,
+      studioConnected: studio.status !== "disconnected",
+      studioArtifactVerified,
+      studioVerificationStatus: studio.verificationStatus,
+      studioVerificationError,
     },
     degradedSources,
   };
@@ -201,7 +214,8 @@ function parseBlueprint(value: unknown): WorkspaceBlueprint {
     id: asString(record.id, "blueprint id"),
     project_id: asString(record.project_id, "blueprint project id"),
     name: asString(record.name, "blueprint name"),
-    description: typeof record.description === "string" ? record.description : "",
+    description:
+      typeof record.description === "string" ? record.description : "",
     status: typeof record.status === "string" ? record.status : "draft",
     version: typeof record.version === "number" ? record.version : 1,
     created_at: asDateString(record.created_at),
@@ -242,50 +256,12 @@ function parsePipelineStep(value: unknown): WorkspacePipelineStep {
     ...record,
     agent: typeof record.agent === "string" ? record.agent : "unknown-agent",
     status: typeof record.status === "string" ? record.status : "unknown",
-    started_at: record.started_at
-      ? asDateString(record.started_at)
-      : undefined,
+    started_at: record.started_at ? asDateString(record.started_at) : undefined,
     completed_at: record.completed_at
       ? asDateString(record.completed_at)
       : undefined,
     duration_ms:
       typeof record.duration_ms === "number" ? record.duration_ms : undefined,
-  };
-}
-
-function parseStudioStatus(value: unknown): WorkspaceStudioStatus {
-  const record = asRecord(value, "Studio status");
-  const rawStatus = String(record.status ?? "disconnected");
-  const status: WorkspaceStudioStatus["status"] = [
-    "connected",
-    "disconnected",
-    "syncing",
-    "error",
-  ].includes(rawStatus)
-    ? (rawStatus as WorkspaceStudioStatus["status"])
-    : "error";
-
-  return {
-    ...record,
-    status,
-    studioId: typeof record.studioId === "string" ? record.studioId : undefined,
-    lastSyncAt: record.lastSyncAt
-      ? asDateString(record.lastSyncAt)
-      : undefined,
-    bridgeVersion:
-      typeof record.bridgeVersion === "string" ? record.bridgeVersion : "unknown",
-    message: typeof record.message === "string" ? record.message : undefined,
-    pendingChanges:
-      typeof record.pendingChanges === "number" ? record.pendingChanges : 0,
-  };
-}
-
-function disconnectedStudioStatus(): WorkspaceStudioStatus {
-  return {
-    status: "disconnected",
-    bridgeVersion: "unknown",
-    pendingChanges: 0,
-    message: "Studio status is unavailable.",
   };
 }
 
