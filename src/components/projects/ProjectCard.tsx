@@ -18,7 +18,11 @@ interface ProjectCardProps {
   onDelete?: (id: string) => void;
 }
 
-export function ProjectCard({ project, onDuplicate, onDelete }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  onDuplicate,
+  onDelete,
+}: ProjectCardProps) {
   return (
     <Card className="group relative overflow-hidden border-border/60 bg-card/50 p-0 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow">
       <Link
@@ -42,7 +46,11 @@ export function ProjectCard({ project, onDuplicate, onDelete }: ProjectCardProps
 
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
-          <Link to="/projects/$projectId" params={{ projectId: project.id }} className="min-w-0">
+          <Link
+            to="/projects/$projectId"
+            params={{ projectId: project.id }}
+            className="min-w-0"
+          >
             <h3 className="truncate font-semibold transition-colors group-hover:text-primary">
               {project.name}
             </h3>
@@ -58,7 +66,10 @@ export function ProjectCard({ project, onDuplicate, onDelete }: ProjectCardProps
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link to="/projects/$projectId" params={{ projectId: project.id }}>
+                <Link
+                  to="/projects/$projectId"
+                  params={{ projectId: project.id }}
+                >
                   <ArrowUpRight className="mr-2 h-4 w-4" /> Open
                 </Link>
               </DropdownMenuItem>
@@ -68,7 +79,10 @@ export function ProjectCard({ project, onDuplicate, onDelete }: ProjectCardProps
                 </DropdownMenuItem>
               )}
               {onDelete && (
-                <DropdownMenuItem onClick={() => onDelete(project.id)} className="text-destructive">
+                <DropdownMenuItem
+                  onClick={() => onDelete(project.id)}
+                  className="text-destructive"
+                >
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </DropdownMenuItem>
               )}
@@ -76,7 +90,9 @@ export function ProjectCard({ project, onDuplicate, onDelete }: ProjectCardProps
           </DropdownMenu>
         </div>
 
-        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
+        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+          {project.description}
+        </p>
 
         {project.status === "generating" && (
           <div className="mt-3">

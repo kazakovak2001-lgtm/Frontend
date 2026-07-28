@@ -385,11 +385,7 @@ function ProjectWorkspacePage() {
             : "idle"
           : "blocked",
     operate:
-      activeStage === "operate"
-        ? "active"
-        : history.length
-          ? "ready"
-          : "idle",
+      activeStage === "operate" ? "active" : history.length ? "ready" : "idle",
   };
 
   return (

@@ -23,13 +23,13 @@ This slice therefore refactors the existing component in place:
 
 The tool registry assigns each existing module group to the workflow stage where it supports a user decision:
 
-| Stage | Tool groups |
-| --- | --- |
-| Define | Knowledge; Concept/Architect/Domain; Memory/Collaboration |
-| Generate | Planning/Autonomous Generation; Compile/Lua/Assets |
-| Validate | Project Controller; Simulation; Economy; World/Lifecycle; Playtest/Repair/Evaluation |
-| Integrate | Project Versioning |
-| Operate | System/Agents; Analytics; Distributed Runtime/Diagnostics |
+| Stage     | Tool groups                                                                          |
+| --------- | ------------------------------------------------------------------------------------ |
+| Define    | Knowledge; Concept/Architect/Domain; Memory/Collaboration                            |
+| Generate  | Planning/Autonomous Generation; Compile/Lua/Assets                                   |
+| Validate  | Project Controller; Simulation; Economy; World/Lifecycle; Playtest/Repair/Evaluation |
+| Integrate | Project Versioning                                                                   |
+| Operate   | System/Agents; Analytics; Distributed Runtime/Diagnostics                            |
 
 `WorkspaceModules` accepts an optional `stage` prop. Omitting it preserves the existing all-tools behavior while route placement is migrated incrementally.
 

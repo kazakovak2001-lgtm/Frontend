@@ -6,7 +6,8 @@ import * as Icons from "lucide-react";
 import type { Agent } from "@/types";
 
 export function AgentCard({ agent }: { agent: Agent }) {
-  const Icon = (Icons[agent.icon as keyof typeof Icons] ?? Icons.Bot) as Icons.LucideIcon;
+  const Icon = (Icons[agent.icon as keyof typeof Icons] ??
+    Icons.Bot) as Icons.LucideIcon;
 
   return (
     <Card className="border-border/60 bg-card/50 p-5 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow">

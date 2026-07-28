@@ -20,8 +20,9 @@ export function WorkspaceRunSummary({
 }) {
   const status = runStatus ?? latestExecution?.status ?? projectStatus;
   const completedSteps =
-    latestExecution?.pipeline_steps.filter((step) => step.status === "completed")
-      .length ?? 0;
+    latestExecution?.pipeline_steps.filter(
+      (step) => step.status === "completed",
+    ).length ?? 0;
   const failedSteps =
     latestExecution?.pipeline_steps.filter((step) => step.status === "failed")
       .length ?? 0;

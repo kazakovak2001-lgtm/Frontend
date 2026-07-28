@@ -17,7 +17,9 @@ export function AuthLayout({
       <div className="relative flex flex-col justify-center px-6 py-12 sm:px-12">
         <div className="mx-auto w-full max-w-sm animate-fade-in">
           <Logo className="mb-10" />
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">
+            {title}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
           <div className="mt-8">{children}</div>
         </div>
@@ -38,10 +40,12 @@ export function AuthLayout({
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         <div className="absolute bottom-12 left-12 right-12 animate-fade-in">
           <h2 className="font-display text-2xl font-semibold">
-            From prompt to playable <span className="text-gradient">Roblox game</span>
+            From prompt to playable{" "}
+            <span className="text-gradient">Roblox game</span>
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            A pipeline of specialized AI agents that plan, design, build and ship your game.
+            A pipeline of specialized AI agents that plan, design, build and
+            ship your game.
           </p>
         </div>
       </div>

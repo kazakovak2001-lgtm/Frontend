@@ -1,4 +1,5 @@
-export type ProjectStatus = "draft" | "generating" | "ready" | "error" | "exported";
+export type ProjectStatus =
+  "draft" | "generating" | "ready" | "error" | "exported";
 
 export type GameGenre =
   | "Simulator"

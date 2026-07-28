@@ -1,4 +1,10 @@
-import { Globe2, UserSquare2, Code2, Package, type LucideIcon } from "lucide-react";
+import {
+  Globe2,
+  UserSquare2,
+  Code2,
+  Package,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Capability {
@@ -71,7 +77,9 @@ export function StudioCapabilities({ className }: { className?: string }) {
             <c.icon className="h-5 w-5" />
           </div>
           <h3 className="mt-4 text-base font-semibold">{c.title}</h3>
-          <p className="mt-1.5 text-sm text-muted-foreground">{c.description}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {c.description}
+          </p>
         </div>
       ))}
     </div>

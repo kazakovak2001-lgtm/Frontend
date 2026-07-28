@@ -39,7 +39,9 @@ export function useProjectWorkspaceData(
       return next;
     } catch (cause) {
       const message =
-        cause instanceof Error ? cause.message : "Workspace data is unavailable";
+        cause instanceof Error
+          ? cause.message
+          : "Workspace data is unavailable";
       if (requestId === requestIdRef.current) {
         setError(message);
       }

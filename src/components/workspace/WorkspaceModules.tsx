@@ -239,7 +239,8 @@ export function WorkspaceModules({
       key: "economy",
       icon: <Coins className="h-5 w-5" />,
       title: "Economy",
-      description: "Models currency flow, detects imbalance and suggests patches.",
+      description:
+        "Models currency flow, detects imbalance and suggests patches.",
       actions: (
         <Button
           size="sm"
@@ -260,7 +261,8 @@ export function WorkspaceModules({
       key: "controller",
       icon: <ShieldCheck className="h-5 w-5" />,
       title: "AI Project Controller",
-      description: "Architecture, duplication and pre-implementation governance.",
+      description:
+        "Architecture, duplication and pre-implementation governance.",
       wide: true,
       actions: (
         <>
@@ -549,7 +551,8 @@ export function WorkspaceModules({
       key: "operations",
       icon: <ServerCog className="h-5 w-5" />,
       title: "Distributed Runtime & Diagnostics",
-      description: "Inspects workers, queues, API versions and execution traces.",
+      description:
+        "Inspects workers, queues, API versions and execution traces.",
       wide: true,
       actions: (
         <>
@@ -601,7 +604,8 @@ export function WorkspaceModules({
       key: "versions",
       icon: <History className="h-5 w-5" />,
       title: "Project Versioning",
-      description: "Persists and reloads named backend snapshots of this project.",
+      description:
+        "Persists and reloads named backend snapshots of this project.",
       wide: true,
       actions: (
         <>

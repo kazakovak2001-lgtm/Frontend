@@ -53,7 +53,8 @@ export function WorkspaceContextRail({
 }) {
   const blockers = buildWorkspaceBlockers(workspace);
   const nextAction = getWorkspaceNextAction(workspace, activeStage);
-  const status = runStatus ?? workspace?.latestExecution?.status ?? projectStatus;
+  const status =
+    runStatus ?? workspace?.latestExecution?.status ?? projectStatus;
   const activity = recentActivity.slice(-4).reverse();
 
   return (
