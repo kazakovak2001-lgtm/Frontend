@@ -39,5 +39,25 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // UI primitives intentionally co-export stable variants and helpers used by
+    // composition code. Keep the exception constrained to the primitive layer.
+    files: ["src/components/ui/**/*.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    // Context modules intentionally co-export Providers and their typed hooks.
+    // The two component modules below expose stable workflow/capability metadata.
+    files: [
+      "src/contexts/**/*.tsx",
+      "src/components/StudioCapabilities.tsx",
+      "src/components/workspace/WorkspaceWorkflowRail.tsx",
+    ],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
   eslintPluginPrettier,
 );
