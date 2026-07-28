@@ -145,6 +145,19 @@ test("blockers reflect missing durable and Studio conditions", () => {
     ),
     ["Studio artifact verification failed: Receipt hash did not match."],
   );
+  assert.deepEqual(
+    buildWorkspaceBlockers(
+      context({
+        studioArtifactVerified: false,
+        studioVerificationStatus: "verified",
+        studioVerificationError:
+          "Studio verification belongs to execution execution-old; the latest execution is execution-new.",
+      }),
+    ),
+    [
+      "Studio verification belongs to execution execution-old; the latest execution is execution-new.",
+    ],
+  );
   assert.deepEqual(buildWorkspaceBlockers(context()), []);
 });
 

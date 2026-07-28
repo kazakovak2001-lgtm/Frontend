@@ -191,7 +191,10 @@ function describeStudioVerificationBlocker(
     case "queued":
       return "Generated artifacts are queued for Roblox Studio verification.";
     case "verified":
-      return "Studio verification evidence is inconsistent.";
+      return (
+        readiness.studioVerificationError ??
+        "Studio verification evidence does not match the latest execution."
+      );
     case "idle":
       return "Studio artifact verification has not started.";
   }

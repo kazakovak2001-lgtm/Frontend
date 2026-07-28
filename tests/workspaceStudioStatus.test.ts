@@ -27,7 +27,14 @@ test("verified Studio responses expose exact backend evidence", () => {
     verifiedArtifactCount: 3,
   });
 
-  assert.equal(isWorkspaceStudioArtifactVerified(status), true);
+  assert.equal(
+    isWorkspaceStudioArtifactVerified(status, "execution-verified"),
+    true,
+  );
+  assert.equal(
+    isWorkspaceStudioArtifactVerified(status, "execution-newer"),
+    false,
+  );
   assert.equal(status.verifiedExecutionId, "execution-verified");
   assert.equal(status.verifiedArtifactCount, 3);
   assert.equal(
@@ -102,6 +109,17 @@ test("malformed Studio verification claims fail closed", () => {
       }),
     /Incomplete Studio verification evidence/,
   );
+  assert.throws(
+    () =>
+      parseWorkspaceStudioStatus({
+        ...connectedStatus,
+        artifactVerified: true,
+        verificationStatus: "verified",
+        verifiedExecutionId: "execution-empty",
+        verifiedArtifactCount: 0,
+      }),
+    /Incomplete Studio verification evidence/,
+  );
 });
 
 test("disconnected Studio responses remain unverified", () => {
@@ -114,8 +132,14 @@ test("disconnected Studio responses remain unverified", () => {
   });
   const unavailableStatus = disconnectedWorkspaceStudioStatus();
 
-  assert.equal(isWorkspaceStudioArtifactVerified(backendStatus), false);
-  assert.equal(isWorkspaceStudioArtifactVerified(unavailableStatus), false);
+  assert.equal(
+    isWorkspaceStudioArtifactVerified(backendStatus, "execution-current"),
+    false,
+  );
+  assert.equal(
+    isWorkspaceStudioArtifactVerified(unavailableStatus, "execution-current"),
+    false,
+  );
   assert.equal(
     describeWorkspaceStudioVerification(backendStatus),
     "Connect Roblox Studio before verifying generated artifacts.",

@@ -50,8 +50,10 @@ The Workspace validates `artifactVerified`, `verificationStatus`, command,
 verified execution/artifact count and verification error from the
 project-scoped Studio status response. `studioArtifactVerified` becomes true
 only when the backend reports a consistent `verified` state with exact
-execution/count evidence. Malformed or contradictory claims fail closed to the
-disconnected/degraded read model.
+execution/count evidence, at least one verified artifact and an execution ID
+matching the latest generation. Malformed or contradictory claims fail closed
+to the disconnected/degraded read model; valid receipts for an older execution
+remain visible but keep the latest generation blocked.
 
 The Integrate stage distinguishes idle, queued, delivered, acknowledged,
 verified and failed states. Backend-verified sessions show the exact evidence

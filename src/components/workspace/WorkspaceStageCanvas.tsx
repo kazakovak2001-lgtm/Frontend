@@ -70,6 +70,9 @@ export function WorkspaceStageCanvas({
   const readiness = workspace?.readiness;
   const history = workspace?.history ?? [];
   const studio = workspace?.studio;
+  const studioVerificationIsStale =
+    studio?.verificationStatus === "verified" &&
+    readiness?.studioArtifactVerified === false;
 
   if (activeStage === "define") {
     return (
@@ -362,9 +365,12 @@ export function WorkspaceStageCanvas({
                     variant="outline"
                     className={studioVerificationBadgeClass(
                       studio?.verificationStatus,
+                      studioVerificationIsStale,
                     )}
                   >
-                    {studio?.verificationStatus ?? "unknown"}
+                    {studioVerificationIsStale
+                      ? "stale"
+                      : (studio?.verificationStatus ?? "unknown")}
                   </Badge>
                 </div>
               </div>
@@ -403,16 +409,25 @@ export function WorkspaceStageCanvas({
             <Card
               className={cn(
                 "space-y-1 p-4 text-xs",
-                studioVerificationCardClass(studio?.verificationStatus),
+                studioVerificationCardClass(
+                  studio?.verificationStatus,
+                  studioVerificationIsStale,
+                ),
               )}
             >
               <p className="font-medium text-foreground">
-                {studioVerificationTitle(studio?.verificationStatus)}
+                {studioVerificationTitle(
+                  studio?.verificationStatus,
+                  studioVerificationIsStale,
+                )}
               </p>
               <p className="text-muted-foreground">
-                {studio
-                  ? describeWorkspaceStudioVerification(studio)
-                  : "Studio verification status is unavailable."}
+                {studioVerificationIsStale
+                  ? (readiness?.studioVerificationError ??
+                    "Studio verification belongs to an earlier generation execution.")
+                  : studio
+                    ? describeWorkspaceStudioVerification(studio)
+                    : "Studio verification status is unavailable."}
               </p>
             </Card>
 
@@ -574,7 +589,9 @@ function studioConnectionBadgeClass(
 
 function studioVerificationBadgeClass(
   status?: WorkspaceStudioVerificationStatus,
+  isStale = false,
 ): string {
+  if (isStale) return "border-warning/40 text-warning";
   switch (status) {
     case "verified":
       return "border-success/40 text-success";
@@ -591,7 +608,9 @@ function studioVerificationBadgeClass(
 
 function studioVerificationCardClass(
   status?: WorkspaceStudioVerificationStatus,
+  isStale = false,
 ): string {
+  if (isStale) return "border-warning/30 bg-warning/5";
   switch (status) {
     case "verified":
       return "border-success/30 bg-success/5";
@@ -608,7 +627,9 @@ function studioVerificationCardClass(
 
 function studioVerificationTitle(
   status?: WorkspaceStudioVerificationStatus,
+  isStale = false,
 ): string {
+  if (isStale) return "Latest artifacts not verified";
   switch (status) {
     case "verified":
       return "Generated artifacts verified";

@@ -69,7 +69,9 @@ export function parseWorkspaceStudioStatus(
   }
   if (
     verificationStatus === "verified" &&
-    (!verifiedExecutionId || verifiedArtifactCount === undefined)
+    (!verifiedExecutionId ||
+      verifiedArtifactCount === undefined ||
+      verifiedArtifactCount < 1)
   ) {
     throw new Error("Incomplete Studio verification evidence");
   }
@@ -113,9 +115,13 @@ export function disconnectedWorkspaceStudioStatus(): WorkspaceStudioStatus {
 
 export function isWorkspaceStudioArtifactVerified(
   status: WorkspaceStudioStatus,
+  latestExecutionId: string | undefined,
 ): boolean {
   return (
-    status.artifactVerified === true && status.verificationStatus === "verified"
+    Boolean(latestExecutionId) &&
+    status.artifactVerified === true &&
+    status.verificationStatus === "verified" &&
+    status.verifiedExecutionId === latestExecutionId
   );
 }
 

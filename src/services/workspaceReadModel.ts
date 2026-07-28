@@ -124,6 +124,16 @@ export async function loadWorkspaceReadModel(
   const hasBlueprint = Boolean(manifest?.blueprint);
   const hasExecution = Boolean(latestExecution);
   const hasCompletedExecution = latestExecution?.status === "completed";
+  const studioArtifactVerified = isWorkspaceStudioArtifactVerified(
+    studio,
+    latestExecution?.id,
+  );
+  const studioVerificationError =
+    studio.verificationStatus === "verified" && !studioArtifactVerified
+      ? latestExecution
+        ? `Studio verification belongs to execution ${studio.verifiedExecutionId}; the latest execution is ${latestExecution.id}.`
+        : "Studio verification cannot be linked to a current generation execution."
+      : studio.verificationError;
 
   return {
     projectId,
@@ -140,9 +150,9 @@ export async function loadWorkspaceReadModel(
       hasCompletedExecution,
       canValidate: hasBlueprint,
       studioConnected: studio.status !== "disconnected",
-      studioArtifactVerified: isWorkspaceStudioArtifactVerified(studio),
+      studioArtifactVerified,
       studioVerificationStatus: studio.verificationStatus,
-      studioVerificationError: studio.verificationError,
+      studioVerificationError,
     },
     degradedSources,
   };
