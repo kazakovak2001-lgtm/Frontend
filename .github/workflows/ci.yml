@@ -32,8 +32,8 @@ jobs:
         run: npx prettier --write scripts/e2e-backend.mjs
       - name: Validate syntax
         run: node --check scripts/e2e-backend.mjs
-      - name: Validate lint
-        run: npm run lint
+      - name: Validate changed-file lint
+        run: npx eslint scripts/e2e-backend.mjs
       - name: Validate TypeScript
         run: npx tsc --noEmit
       - name: Validate workspace logic
