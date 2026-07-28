@@ -1,58 +1,267 @@
-name: RUNTIME-205 Contract Fixer
+name: Frontend CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: runtime-205-contract-fixer-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  apply-and-validate:
+  typecheck:
+    name: TypeScript Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout writable companion branch
-        uses: actions/checkout@v4
-        with:
-          ref: agent/runtime-205-bounded-preview-contract
-          fetch-depth: 0
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-      - name: Apply exact contract patch
-        run: python scripts/runtime205-contract-fixer.py
-      - name: Install dependencies
-        run: npm ci
-      - name: Format contract
-        run: npx prettier --write scripts/e2e-backend.mjs
-      - name: Validate syntax
-        run: node --check scripts/e2e-backend.mjs
-      - name: Validate changed-file lint
-        run: npx eslint scripts/e2e-backend.mjs
-      - name: Validate TypeScript
-        run: npx tsc --noEmit
-      - name: Validate workspace logic
-        run: npm run test:workspace
-      - name: Validate production build
-        run: npm run build
-      - name: Restore canonical CI and remove fixer
+          cache: "npm"
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  workspace-tests:
+    name: Workspace Logic Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run test:workspace
+
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - name: Publish production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-production-${{ github.sha }}
+          path: .output
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  responsive-qa:
+    name: Responsive Workspace QA
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Download production bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-production-${{ github.sha }}
+          path: .output
+      - name: Install isolated browser runtime
         run: |
-          git fetch origin agent/runtime-204-preview-terminal-contract
-          git checkout origin/agent/runtime-204-preview-terminal-contract -- .github/workflows/ci.yml
-          git rm -f scripts/runtime205-contract-fixer.py
-      - name: Commit validated contract only
+          npm install --no-save --package-lock=false playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Verify responsive Workspace
+        run: node scripts/qa/workspace-responsive-qa.mjs
+      - name: Publish responsive QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-responsive-qa-${{ github.sha }}
+          path: artifacts/workspace-responsive
+          if-no-files-found: warn
+          retention-days: 14
+
+  frontend-image:
+    name: Frontend Release Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Frontend image
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No permanent changes to commit"
-            exit 0
-          fi
-          git commit -m "test(runtime): verify bounded autonomous preview"
-          git push origin HEAD:agent/runtime-205-bounded-preview-contract
+          docker build \
+            --build-arg VITE_API_URL=http://127.0.0.1:5000/api \
+            --build-arg VITE_SOCKET_URL=http://127.0.0.1:5000 \
+            --tag roblox-ai-studio-frontend:cutover \
+            .
+      - name: Start Frontend container
+        run: |
+          docker run --detach \
+            --name roblox-ai-studio-frontend-cutover \
+            --publish 4180:3000 \
+            --env PORT=3000 \
+            --env HOST=0.0.0.0 \
+            --env PUBLIC_ORIGIN=http://127.0.0.1:4180 \
+            roblox-ai-studio-frontend:cutover
+      - name: Verify Frontend health and SSR document
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4180/health > frontend-health.json; then
+              grep --quiet '"status":"healthy"' frontend-health.json
+              grep --quiet '"service":"roblox-ai-studio-frontend"' frontend-health.json
+              break
+            fi
+            sleep 1
+          done
+          test -s frontend-health.json
+          curl --fail --silent --show-error http://127.0.0.1:4180/ > frontend-index.html
+          grep --ignore-case --quiet '<html' frontend-index.html
+          grep --ignore-case --quiet 'Roblox AI Studio' frontend-index.html
+      - name: Capture Frontend container logs
+        if: always()
+        run: docker logs roblox-ai-studio-frontend-cutover > frontend-container.log 2>&1 || true
+      - name: Publish Frontend container diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-container-diagnostics-${{ github.sha }}
+          path: |
+            frontend-health.json
+            frontend-index.html
+            frontend-container.log
+          if-no-files-found: warn
+          retention-days: 1
+      - name: Print Frontend logs on failure
+        if: failure()
+        run: cat frontend-container.log || true
+      - name: Stop Frontend container
+        if: always()
+        run: docker rm --force roblox-ai-studio-frontend-cutover || true
+
+  production-contract:
+    name: Production Backend Contract
+    runs-on: ubuntu-latest
+    env:
+      INT201_BACKEND_SHA: 7e98aba28911a20ff942e04ba5eaa51448c34b0c
+      INT201_FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      INT201_FRONTEND_ORIGIN: http://127.0.0.1:4173
+      INT201_API_URL: http://127.0.0.1:5051/api
+      INT201_SOCKET_URL: http://127.0.0.1:5051
+    steps:
+      - name: Checkout exact Frontend source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.INT201_FRONTEND_SHA }}
+      - name: Checkout exact backend baseline
+        uses: actions/checkout@v4
+        with:
+          repository: kazakovak2001-lgtm/RobloxAIStudio2
+          ref: ${{ env.INT201_BACKEND_SHA }}
+          path: backend-source
+      - name: Verify and record exact contract sources
+        run: |
+          test "$(git rev-parse HEAD)" = "$INT201_FRONTEND_SHA"
+          test "$(git -C backend-source rev-parse HEAD)" = "$INT201_BACKEND_SHA"
+          mkdir -p artifacts/int-201
+          printf '%s\n' \
+            "contract=INT-201" \
+            "frontendSha=$INT201_FRONTEND_SHA" \
+            "backendSha=$INT201_BACKEND_SHA" \
+            "nodeEnv=production" \
+            "storageProvider=inmemory" \
+            "frontendOrigin=$INT201_FRONTEND_ORIGIN" \
+            "apiUrl=$INT201_API_URL" \
+            "socketUrl=$INT201_SOCKET_URL" \
+            > artifacts/int-201/runtime.env
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Build exact production backend image
+        run: |
+          docker build \
+            --file backend-source/Dockerfile.backend \
+            --label "org.opencontainers.image.revision=$INT201_BACKEND_SHA" \
+            --tag roblox-ai-studio-backend:int-201 \
+            backend-source
+      - name: Start production backend
+        run: |
+          docker run --detach \
+            --name roblox-ai-studio-backend-int-201 \
+            --publish 5051:5000 \
+            --env NODE_ENV=production \
+            --env PORT=5000 \
+            --env STORAGE_PROVIDER=inmemory \
+            --env FRONTEND_URL="$INT201_FRONTEND_ORIGIN" \
+            roblox-ai-studio-backend:int-201
+      - name: Wait for production backend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent "$INT201_SOCKET_URL/health" > /tmp/int-201-health.json; then
+              grep --quiet '"status":"healthy"' /tmp/int-201-health.json
+              exit 0
+            fi
+            sleep 1
+          done
+          docker inspect roblox-ai-studio-backend-int-201 || true
+          exit 1
+      - name: Run protected 40-check contract
+        env:
+          E2E_API_URL: ${{ env.INT201_API_URL }}
+          E2E_SOCKET_URL: ${{ env.INT201_SOCKET_URL }}
+          E2E_EVIDENCE_PATH: artifacts/int-201/contract.json
+          E2E_CONTRACT_MODE: production
+          E2E_BACKEND_SHA: ${{ env.INT201_BACKEND_SHA }}
+          E2E_FRONTEND_SHA: ${{ env.INT201_FRONTEND_SHA }}
+          E2E_BACKEND_NODE_ENV: production
+          E2E_STORAGE_PROVIDER: inmemory
+          E2E_FRONTEND_ORIGIN: ${{ env.INT201_FRONTEND_ORIGIN }}
+        run: |
+          mkdir -p artifacts/int-201
+          set -o pipefail
+          npm run test:e2e:integration 2>&1 | tee artifacts/int-201/e2e.log
+      - name: Capture production contract diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/int-201
+          cp /tmp/int-201-health.json artifacts/int-201/backend-health.json 2>/dev/null || true
+          docker logs roblox-ai-studio-backend-int-201 > artifacts/int-201/backend.log 2>&1 || true
+          docker image inspect roblox-ai-studio-backend:int-201 > artifacts/int-201/backend-image.json 2>&1 || true
+      - name: Publish production contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: int-201-production-contract-${{ env.INT201_FRONTEND_SHA }}
+          path: artifacts/int-201
+          if-no-files-found: error
+          retention-days: 14
+      - name: Print backend logs on failure
+        if: failure()
+        run: cat artifacts/int-201/backend.log || true
+      - name: Stop production backend
+        if: always()
+        run: docker rm --force roblox-ai-studio-backend-int-201 || true
+
+  gate:
+    name: Merge Gate
+    runs-on: ubuntu-latest
+    needs:
+      [
+        typecheck,
+        workspace-tests,
+        build,
+        responsive-qa,
+        frontend-image,
+        production-contract,
+      ]
+    steps:
+      - run: echo "All Frontend checks passed"
