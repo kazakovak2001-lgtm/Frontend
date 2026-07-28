@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
 
 let vite: ViteDevServer | undefined;
 const originalFetch = globalThis.fetch;
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
 after(async () => {
   globalThis.fetch = originalFetch;
@@ -12,7 +14,7 @@ after(async () => {
 
 async function loadBackendApi(caseName: string) {
   vite ??= await createServer({
-    root: process.cwd(),
+    root: repositoryRoot,
     configFile: false,
     appType: "custom",
     logLevel: "silent",
@@ -112,7 +114,8 @@ test("surfaces definitive session expiration when refresh is rejected", async ()
     throw new Error(`Unexpected request: ${path}`);
   };
 
-  const { backendApi, BackendApiError } = await loadBackendApi("refresh-failed");
+  const { backendApi, BackendApiError } =
+    await loadBackendApi("refresh-failed");
 
   await assert.rejects(
     backendApi.auth.me(),
