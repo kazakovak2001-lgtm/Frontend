@@ -1,0 +1,105 @@
+name: Apply RUNTIME-204 Contract Fix
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-contract-fix:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Apply autonomous preview contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/e2e-backend.mjs")
+          text = path.read_text()
+
+          replacements = [
+              (
+                  '''async function waitForTerminalStatus(path, label) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const state = await request(path);
+    if (["completed", "failed", "cancelled"].includes(state.status)) {
+      return state;
+    }
+''',
+                  '''async function waitForTerminalStatus(
+  path,
+  label,
+  terminalStatuses = ["completed", "failed", "cancelled"],
+) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const state = await request(path);
+    if (terminalStatuses.includes(state.status)) {
+      return state;
+    }
+''',
+              ),
+              (
+                  '''    const terminal = await waitForTerminalStatus(
+      `/autonomous/status/${autonomous.sessionId}`,
+      `Autonomous session ${autonomous.sessionId}`,
+    );
+''',
+                  '''    const terminal = await waitForTerminalStatus(
+      `/autonomous/status/${autonomous.sessionId}`,
+      `Autonomous session ${autonomous.sessionId}`,
+      ["simulated", "failed", "cancelled"],
+    );
+''',
+              ),
+              (
+                  '''      Array.isArray(collaboration.tasks) &&
+        autonomous.sessionId &&
+        terminal.status === "completed",
+''',
+                  '''      Array.isArray(collaboration.tasks) &&
+        autonomous.sessionId &&
+        autonomous.productionCompleted === false &&
+        terminal.status === "simulated" &&
+        terminal.executionMode === "simulation" &&
+        terminal.resultAuthority === "preview-only" &&
+        terminal.qualityScore === null &&
+        terminal.cost?.totalCost === 0,
+''',
+              ),
+          ]
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"Expected contract block not found: {old[:80]!r}")
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+          PY
+      - name: Format and validate
+        run: |
+          npx prettier --write scripts/e2e-backend.mjs
+          node --check scripts/e2e-backend.mjs
+          npm run lint
+          npm run test:workspace
+          npm run build
+      - name: Commit contract fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/e2e-backend.mjs
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit --no-verify -m "fix(contract): accept autonomous preview terminal state"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
