@@ -99,6 +99,30 @@ verification state, cross-user project isolation, export, settings, deletion,
 logout and login restoration. TypeScript, production build and responsive
 browser QA are also required before merge.
 
+### Protected production contract (INT-201)
+
+`Production Backend Contract` is a required Frontend CI job. It checks out the
+exact backend baseline
+`7e98aba28911a20ff942e04ba5eaa51448c34b0c`, builds its backend-only image,
+starts it with `NODE_ENV=production` and runs all 40 integration checks from the
+exact Frontend pull-request head or push commit. `Merge Gate` depends on this
+job, so an authentication, ownership-isolation, realtime, generation, module or
+guarded Studio-sync regression blocks merge.
+
+Every run uploads `int-201-production-contract-<frontend-sha>`. The artifact
+contains the source/runtime manifest and, once the suite starts, a
+machine-readable `contract.json` with both commit SHAs, all completed check
+names and durations, runtime configuration and the final status. It also
+contains the E2E transcript, health response, image inspection and backend log.
+In-memory storage is explicit because this contract exercises authorization and
+integration behavior; PostgreSQL durability remains covered by the backend
+restart gate.
+
+The backend intentionally bypasses authentication whenever
+`NODE_ENV !== production`. Development-mode runs are useful for local feature
+work, but they are not valid authentication or cross-user isolation evidence
+and cannot satisfy INT-201.
+
 ## External runtime dependencies
 
 - Real model output requires at least one configured LLM provider key; without it, the backend intentionally reports stub mode.
