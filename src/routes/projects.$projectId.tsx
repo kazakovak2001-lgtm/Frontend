@@ -69,7 +69,10 @@ function ProjectWorkspacePage() {
   const [realtimeWaitElapsed, setRealtimeWaitElapsed] = useState(false);
   const pendingStartRef = useRef<string | undefined>(undefined);
   const activeRun = runs[projectId];
-  const history = workspaceData?.history ?? [];
+  const history = useMemo(
+    () => workspaceData?.history ?? [],
+    [workspaceData?.history],
+  );
   const manifest = workspaceData?.manifest;
 
   useEffect(() => {
