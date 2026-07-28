@@ -13,6 +13,7 @@ import { WorkspaceRunSummary } from "@/components/workspace/WorkspaceRunSummary"
 import type { WorkspaceStage } from "@/components/workspace/WorkspaceWorkflowRail";
 import type { WorkspaceReadModel } from "@/services/workspaceReadModel";
 import {
+  canSyncWorkspaceStudio,
   describeWorkspaceStudioVerification,
   type WorkspaceStudioConnectionStatus,
   type WorkspaceStudioVerificationStatus,
@@ -382,11 +383,15 @@ export function WorkspaceStageCanvas({
             <dl className="grid gap-3 text-sm">
               <DataField
                 label="Bridge version"
-                value={studio?.bridgeVersion ?? "Unknown"}
+                value={studio?.bridgeVersion ?? "unknown"}
               />
               <DataField
                 label="Last sync"
-                value={studio?.lastSyncAt ?? "Never"}
+                value={
+                  studio?.lastSyncAt
+                    ? new Date(studio.lastSyncAt).toLocaleString()
+                    : "Never"
+                }
               />
               <DataField
                 label="Pending changes"
@@ -440,9 +445,7 @@ export function WorkspaceStageCanvas({
                 Refresh status
               </Button>
               <Button
-                disabled={
-                  busy === "studio" || workspace?.studio.status !== "connected"
-                }
+                disabled={busy === "studio" || !canSyncWorkspaceStudio(studio)}
                 onClick={onSyncStudio}
               >
                 Sync to Studio

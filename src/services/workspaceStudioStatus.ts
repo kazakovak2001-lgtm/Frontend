@@ -125,6 +125,12 @@ export function isWorkspaceStudioArtifactVerified(
   );
 }
 
+export function canSyncWorkspaceStudio(
+  status: WorkspaceStudioStatus | undefined,
+): boolean {
+  return status?.status === "connected" || status?.status === "error";
+}
+
 export function describeWorkspaceStudioVerification(
   status: WorkspaceStudioStatus,
 ): string {

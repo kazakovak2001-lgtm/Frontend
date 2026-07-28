@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  canSyncWorkspaceStudio,
   describeWorkspaceStudioVerification,
   disconnectedWorkspaceStudioStatus,
   isWorkspaceStudioArtifactVerified,
@@ -35,6 +36,7 @@ test("verified Studio responses expose exact backend evidence", () => {
     isWorkspaceStudioArtifactVerified(status, "execution-newer"),
     false,
   );
+  assert.equal(canSyncWorkspaceStudio(status), true);
   assert.equal(status.verifiedExecutionId, "execution-verified");
   assert.equal(status.verifiedArtifactCount, 3);
   assert.equal(
@@ -59,7 +61,8 @@ test("pending Studio responses preserve each delivery state", () => {
       verificationStatus,
       pendingChanges: 1,
     });
-    assert.equal(isWorkspaceStudioArtifactVerified(status), false);
+    assert.equal(isWorkspaceStudioArtifactVerified(status, undefined), false);
+    assert.equal(canSyncWorkspaceStudio(status), false);
     assert.equal(status.verificationStatus, verificationStatus);
     assert.equal(describeWorkspaceStudioVerification(status), description);
   }
@@ -73,7 +76,8 @@ test("failed Studio responses preserve the verification error", () => {
     verificationError: "Receipt hash did not match.",
   });
 
-  assert.equal(isWorkspaceStudioArtifactVerified(status), false);
+  assert.equal(isWorkspaceStudioArtifactVerified(status, undefined), false);
+  assert.equal(canSyncWorkspaceStudio(status), true);
   assert.equal(status.verificationError, "Receipt hash did not match.");
   assert.equal(
     describeWorkspaceStudioVerification(status),
@@ -140,6 +144,8 @@ test("disconnected Studio responses remain unverified", () => {
     isWorkspaceStudioArtifactVerified(unavailableStatus, "execution-current"),
     false,
   );
+  assert.equal(canSyncWorkspaceStudio(backendStatus), false);
+  assert.equal(canSyncWorkspaceStudio(unavailableStatus), false);
   assert.equal(
     describeWorkspaceStudioVerification(backendStatus),
     "Connect Roblox Studio before verifying generated artifacts.",
