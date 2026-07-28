@@ -1,0 +1,42 @@
+name: FEQ-205 Formatting Evidence
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  format-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Format FEQ-205 files
+        run: |
+          npx prettier --write \
+            src/hooks/useProjectRealtime.ts \
+            src/services/projectRealtimeBinding.ts \
+            tests/auth-session-recovery.test.ts \
+            tests/project-realtime-binding.test.ts
+          mkdir -p artifacts/feq-205-formatted/src/hooks
+          mkdir -p artifacts/feq-205-formatted/src/services
+          mkdir -p artifacts/feq-205-formatted/tests
+          cp src/hooks/useProjectRealtime.ts artifacts/feq-205-formatted/src/hooks/
+          cp src/services/projectRealtimeBinding.ts artifacts/feq-205-formatted/src/services/
+          cp tests/auth-session-recovery.test.ts artifacts/feq-205-formatted/tests/
+          cp tests/project-realtime-binding.test.ts artifacts/feq-205-formatted/tests/
+      - name: Publish formatted files
+        uses: actions/upload-artifact@v4
+        with:
+          name: feq-205-formatted-${{ github.event.pull_request.head.sha }}
+          path: artifacts/feq-205-formatted
+          if-no-files-found: error
+          retention-days: 1
