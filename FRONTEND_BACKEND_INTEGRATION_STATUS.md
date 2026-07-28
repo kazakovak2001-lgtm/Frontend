@@ -44,6 +44,19 @@ Every active button is either a submit control, link, dialog/menu trigger or has
 
 Versioned and transport-level endpoints are deliberately not duplicated as separate UI modules. The frontend uses the stable v1 compile contract, v2 only for DAG/status inspection, and project-scoped Studio routes instead of exposing plugin protocol controls to browser users.
 
+## Studio verification contract
+
+The Workspace validates `artifactVerified`, `verificationStatus`, command,
+verified execution/artifact count and verification error from the
+project-scoped Studio status response. `studioArtifactVerified` becomes true
+only when the backend reports a consistent `verified` state with exact
+execution/count evidence. Malformed or contradictory claims fail closed to the
+disconnected/degraded read model.
+
+The Integrate stage distinguishes idle, queued, delivered, acknowledged,
+verified and failed states. Backend-verified sessions show the exact evidence
+and no longer retain the historical permanent STUDIO-1 blocker.
+
 ## Realtime contract
 
 The workspace opens one credentialed Socket.IO connection, joins `project:<projectId>` after route mount and leaves it during cleanup. It accepts only events whose payload contains the active `projectId`.
@@ -69,11 +82,20 @@ If `VITE_SOCKET_URL` is omitted, the Socket.IO origin is derived from `VITE_API_
 ## Verification
 
 ```bash
+npx tsc --noEmit
+npm run test:workspace
 npm run test:e2e:integration
 npm run build
 ```
 
-The integration suite currently contains 40 checks. It covers authenticated REST and Socket.IO behavior, all user-facing module groups, full project lifecycle, persistent chat, guarded Studio sync, cross-user project isolation, export, settings, deletion, logout and login restoration. TypeScript and production build are also required before merge.
+The native suite contains 12 checks, including verified, pending, failed,
+malformed and disconnected Studio responses plus Workspace blocker/next-action
+behavior. The integration suite contains 40 checks. It covers authenticated
+REST and Socket.IO behavior, all user-facing module groups, full project
+lifecycle, persistent chat, guarded Studio sync, explicit disconnected
+verification state, cross-user project isolation, export, settings, deletion,
+logout and login restoration. TypeScript, production build and responsive
+browser QA are also required before merge.
 
 ## External runtime dependencies
 

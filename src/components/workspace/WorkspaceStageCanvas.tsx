@@ -1,10 +1,4 @@
-import {
-  Bot,
-  Download,
-  History,
-  RefreshCw,
-  Settings2,
-} from "lucide-react";
+import { Bot, Download, History, RefreshCw, Settings2 } from "lucide-react";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { CoverGeneratorDialog } from "@/components/projects/CoverGeneratorDialog";
@@ -18,6 +12,11 @@ import { WorkspaceModules } from "@/components/workspace/WorkspaceModules";
 import { WorkspaceRunSummary } from "@/components/workspace/WorkspaceRunSummary";
 import type { WorkspaceStage } from "@/components/workspace/WorkspaceWorkflowRail";
 import type { WorkspaceReadModel } from "@/services/workspaceReadModel";
+import {
+  describeWorkspaceStudioVerification,
+  type WorkspaceStudioConnectionStatus,
+  type WorkspaceStudioVerificationStatus,
+} from "@/services/workspaceStudioStatus";
 import type { Agent, LogEntry, Project } from "@/types";
 import { formatDate } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -70,6 +69,7 @@ export function WorkspaceStageCanvas({
   const manifest = workspace?.manifest;
   const readiness = workspace?.readiness;
   const history = workspace?.history ?? [];
+  const studio = workspace?.studio;
 
   if (activeStage === "define") {
     return (
@@ -131,7 +131,8 @@ export function WorkspaceStageCanvas({
                 <div>
                   <h2 className="font-semibold">Persisted blueprint</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Canonical project definition loaded from the backend export boundary.
+                    Canonical project definition loaded from the backend export
+                    boundary.
                   </p>
                 </div>
                 <Badge
@@ -294,7 +295,8 @@ export function WorkspaceStageCanvas({
       >
         {!readiness?.canValidate && (
           <Card className="border-warning/30 bg-warning/5 p-5 text-sm">
-            A persisted blueprint is required before validation results can be treated as canonical.
+            A persisted blueprint is required before validation results can be
+            treated as canonical.
           </Card>
         )}
         <WorkspaceModules project={project} stage="validate" />
@@ -349,40 +351,69 @@ export function WorkspaceStageCanvas({
             <div>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-semibold">Roblox Studio bridge</h2>
-                <Badge
-                  variant="outline"
-                  className={
-                    workspace?.studio.status === "connected"
-                      ? "border-success/40 text-success"
-                      : "border-warning/40 text-warning"
-                  }
-                >
-                  {workspace?.studio.status ?? "unknown"}
-                </Badge>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Badge
+                    variant="outline"
+                    className={studioConnectionBadgeClass(studio?.status)}
+                  >
+                    {studio?.status ?? "unknown"}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={studioVerificationBadgeClass(
+                      studio?.verificationStatus,
+                    )}
+                  >
+                    {studio?.verificationStatus ?? "unknown"}
+                  </Badge>
+                </div>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                {workspace?.studio.message ??
-                  "Studio connection status is unavailable."}
+                {studio?.message ?? "Studio connection status is unavailable."}
               </p>
             </div>
 
             <dl className="grid gap-3 text-sm">
               <DataField
                 label="Bridge version"
-                value={workspace?.studio.bridgeVersion ?? "Unknown"}
+                value={studio?.bridgeVersion ?? "Unknown"}
               />
               <DataField
                 label="Last sync"
-                value={workspace?.studio.lastSyncAt ?? "Never"}
+                value={studio?.lastSyncAt ?? "Never"}
               />
               <DataField
                 label="Pending changes"
-                value={String(workspace?.studio.pendingChanges ?? 0)}
+                value={String(studio?.pendingChanges ?? 0)}
+              />
+              <DataField
+                label="Verified execution"
+                value={studio?.verifiedExecutionId ?? "Not verified"}
+              />
+              <DataField
+                label="Verified artifacts"
+                value={
+                  studio?.verifiedArtifactCount === undefined
+                    ? "Not verified"
+                    : String(studio.verifiedArtifactCount)
+                }
               />
             </dl>
 
-            <Card className="border-warning/30 bg-warning/5 p-4 text-xs text-muted-foreground">
-              Studio connectivity is available, but real generated-artifact delivery remains unverified until STUDIO-1.
+            <Card
+              className={cn(
+                "space-y-1 p-4 text-xs",
+                studioVerificationCardClass(studio?.verificationStatus),
+              )}
+            >
+              <p className="font-medium text-foreground">
+                {studioVerificationTitle(studio?.verificationStatus)}
+              </p>
+              <p className="text-muted-foreground">
+                {studio
+                  ? describeWorkspaceStudioVerification(studio)
+                  : "Studio verification status is unavailable."}
+              </p>
             </Card>
 
             <div className="flex flex-wrap gap-2">
@@ -453,7 +484,8 @@ export function WorkspaceStageCanvas({
                   <div>
                     <p className="font-medium">{record.pipelineId}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {new Date(record.startedAt).toLocaleString()} · {record.stagesCompleted}/{record.stagesTotal} stages
+                      {new Date(record.startedAt).toLocaleString()} ·{" "}
+                      {record.stagesCompleted}/{record.stagesTotal} stages
                     </p>
                   </div>
                   <Badge variant="outline" className="w-fit capitalize">
@@ -525,6 +557,74 @@ export function WorkspaceStageCanvas({
   );
 }
 
+function studioConnectionBadgeClass(
+  status?: WorkspaceStudioConnectionStatus,
+): string {
+  switch (status) {
+    case "connected":
+      return "border-success/40 text-success";
+    case "syncing":
+      return "border-warning/40 text-warning";
+    case "error":
+      return "border-destructive/40 text-destructive";
+    default:
+      return "border-border/60 text-muted-foreground";
+  }
+}
+
+function studioVerificationBadgeClass(
+  status?: WorkspaceStudioVerificationStatus,
+): string {
+  switch (status) {
+    case "verified":
+      return "border-success/40 text-success";
+    case "failed":
+      return "border-destructive/40 text-destructive";
+    case "queued":
+    case "delivered":
+    case "acknowledged":
+      return "border-warning/40 text-warning";
+    default:
+      return "border-border/60 text-muted-foreground";
+  }
+}
+
+function studioVerificationCardClass(
+  status?: WorkspaceStudioVerificationStatus,
+): string {
+  switch (status) {
+    case "verified":
+      return "border-success/30 bg-success/5";
+    case "failed":
+      return "border-destructive/30 bg-destructive/5";
+    case "queued":
+    case "delivered":
+    case "acknowledged":
+      return "border-warning/30 bg-warning/5";
+    default:
+      return "border-border/60 bg-background/40";
+  }
+}
+
+function studioVerificationTitle(
+  status?: WorkspaceStudioVerificationStatus,
+): string {
+  switch (status) {
+    case "verified":
+      return "Generated artifacts verified";
+    case "failed":
+      return "Artifact verification failed";
+    case "queued":
+    case "delivered":
+    case "acknowledged":
+      return "Artifact verification in progress";
+    case "idle":
+      return "Artifact verification not started";
+    default:
+      return "Artifact verification unavailable";
+  }
+}
+
 function StageSection({
   id,
   title,
@@ -539,7 +639,10 @@ function StageSection({
   return (
     <section className="space-y-6" aria-labelledby={id}>
       <div>
-        <h2 id={id} className="font-display text-xl font-semibold tracking-tight">
+        <h2
+          id={id}
+          className="font-display text-xl font-semibold tracking-tight"
+        >
           {title}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>

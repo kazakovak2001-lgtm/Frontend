@@ -6,6 +6,10 @@
 
 **Status:** Implemented and CI-verified
 
+> Historical WORKSPACE-1 baseline: the “unverified until STUDIO-1” statements
+> below describe this original slice. STUDIO-1 is now complete and HARDEN-2A /
+> FE-201 parses and renders the backend's exact verification evidence.
+
 ## Objective
 
 Replace the eight technical tabs on `/projects/$projectId` with a project workflow that explains what the user should do next without adding new backend endpoints, stores, or realtime clients.

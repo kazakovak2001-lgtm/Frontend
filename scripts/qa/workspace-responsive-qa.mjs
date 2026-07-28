@@ -231,6 +231,11 @@ async function inspectViewport(browserInstance, testCase) {
     await page
       .getByText(testCase.expectedToolHeading, { exact: true })
       .waitFor();
+    if (testCase.stage === "integrate") {
+      await page
+        .getByText("Generated artifacts verified", { exact: true })
+        .waitFor();
+    }
     await page.addStyleTag({
       content:
         "*,*::before,*::after{animation:none!important;transition:none!important}",
@@ -455,8 +460,13 @@ function createMockBackend() {
         studioId: "studio-qa",
         lastSyncAt: now,
         bridgeVersion: "1.0.0",
-        message: "Roblox Studio is connected to the QA project.",
+        message: "Roblox Studio verified the generated project artifacts.",
         pendingChanges: 0,
+        artifactVerified: true,
+        verificationStatus: "verified",
+        lastCommandId: "command-qa-verified",
+        verifiedExecutionId: execution.id,
+        verifiedArtifactCount: 3,
       };
     } else if (requestPath === "/api/system/agents") {
       data = agents;
