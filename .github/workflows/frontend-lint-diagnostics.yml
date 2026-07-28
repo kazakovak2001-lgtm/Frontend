@@ -1,0 +1,36 @@
+name: Frontend Lint Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Capture ESLint output
+        run: |
+          mkdir -p artifacts/frontend-lint
+          set +e
+          npm run lint > artifacts/frontend-lint/eslint.log 2>&1
+          status=$?
+          printf 'lint=%s\n' "$status" > artifacts/frontend-lint/status.env
+          exit 0
+      - name: Publish ESLint diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-lint-diagnostics-${{ github.event.pull_request.head.sha }}
+          path: artifacts/frontend-lint
+          if-no-files-found: error
+          retention-days: 1
