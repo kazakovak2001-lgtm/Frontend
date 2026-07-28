@@ -706,7 +706,7 @@ async function main() {
     ]);
     const terminal = await waitForTerminalStatus(
       `/autonomous/status/${autonomous.sessionId}`,
-      `Autonomous session ${autonmous.sessionId}`,
+      `Autonomous session ${autonomous.sessionId}`,
       ["simulated", "failed", "cancelled"],
     );
     assert(
