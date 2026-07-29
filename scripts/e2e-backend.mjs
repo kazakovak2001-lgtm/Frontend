@@ -206,10 +206,14 @@ async function waitForTerminalGeneration(projectId, executionId) {
   throw new Error(`Generation ${executionId} did not reach a terminal state`);
 }
 
-async function waitForTerminalStatus(path, label) {
+async function waitForTerminalStatus(
+  path,
+  label,
+  terminalStatuses = ["completed", "failed", "cancelled"],
+) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const state = await request(path);
-    if (["completed", "failed", "cancelled"].includes(state.status)) {
+    if (terminalStatuses.includes(state.status)) {
       return state;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
@@ -703,11 +707,17 @@ async function main() {
     const terminal = await waitForTerminalStatus(
       `/autonomous/status/${autonomous.sessionId}`,
       `Autonomous session ${autonomous.sessionId}`,
+      ["simulated", "failed", "cancelled"],
     );
     assert(
       Array.isArray(collaboration.tasks) &&
         autonomous.sessionId &&
-        terminal.status === "completed",
+        autonomous.productionCompleted === false &&
+        terminal.status === "simulated" &&
+        terminal.executionMode === "simulation" &&
+        terminal.resultAuthority === "preview-only" &&
+        terminal.qualityScore === null &&
+        terminal.cost?.totalCost === 0,
       "Collaboration or autonomous contract is incomplete",
     );
   });
