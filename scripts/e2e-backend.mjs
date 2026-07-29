@@ -976,7 +976,7 @@ async function main() {
     const session = await request(
       "/platform/auth/login",
       json("POST", { email, password }),
-   );
+    );
     assert(session.user.id === userId, "Login returned another user");
     const current = await request("/platform/auth/me");
     assert(current.user.id === userId, "Login cookie session was not restored");
