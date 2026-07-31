@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
@@ -18,6 +19,7 @@ async function loadBackendApi(caseName: string) {
     configFile: false,
     appType: "custom",
     logLevel: "silent",
+    resolve: { alias: { "@": path.resolve(repositoryRoot, "src") } },
     server: { middlewareMode: true },
   });
 
