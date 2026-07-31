@@ -46,3 +46,17 @@ test("autonomous contract rejects unknown lifecycle states", () => {
     /Invalid autonomous session status/,
   );
 });
+
+test("autonomous contract keeps the latest durable checkpoint evidence", () => {
+  const parsed = parseAutonomousSession({
+    ...sessionFixture(),
+    checkpoints: [
+      { id: "checkpoint-1", phase: "blueprint", timestamp: 100 },
+      { id: "checkpoint-1", phase: "lua_generation", timestamp: 200 },
+    ],
+  });
+
+  assert.deepEqual(parsed.checkpoints, [
+    { id: "checkpoint-1", phase: "lua_generation", timestamp: 200 },
+  ]);
+});
