@@ -45,6 +45,28 @@ export interface AutonomousSession {
   terminalEvidenceId?: string;
 }
 
+export interface LatestRequestGuard {
+  begin(): number;
+  invalidate(): void;
+  isCurrent(requestId: number): boolean;
+}
+
+export function createLatestRequestGuard(): LatestRequestGuard {
+  let currentRequestId = 0;
+  return {
+    begin() {
+      currentRequestId += 1;
+      return currentRequestId;
+    },
+    invalidate() {
+      currentRequestId += 1;
+    },
+    isCurrent(requestId) {
+      return requestId === currentRequestId;
+    },
+  };
+}
+
 const SESSION_STATUSES = new Set<AutonomousSessionStatus>([
   "running",
   "completed",
@@ -63,14 +85,7 @@ export function parseAutonomousSession(value: unknown): AutonomousSession {
   }
 
   const checkpoints = Array.isArray(record.checkpoints)
-    ? [
-        ...new Map(
-          record.checkpoints.map((checkpoint) => {
-            const parsed = parseCheckpoint(checkpoint);
-            return [parsed.id, parsed] as const;
-          }),
-        ).values(),
-      ]
+    ? deduplicateLatestCheckpoints(record.checkpoints.map(parseCheckpoint))
     : [];
 
   return {
@@ -99,6 +114,20 @@ export function parseAutonomousSession(value: unknown): AutonomousSession {
         ? record.terminalEvidenceId
         : undefined,
   };
+}
+
+function deduplicateLatestCheckpoints(
+  checkpoints: AutonomousCheckpoint[],
+): AutonomousCheckpoint[] {
+  const seen = new Set<string>();
+  const latest: AutonomousCheckpoint[] = [];
+  for (let index = checkpoints.length - 1; index >= 0; index -= 1) {
+    const checkpoint = checkpoints[index];
+    if (seen.has(checkpoint.id)) continue;
+    seen.add(checkpoint.id);
+    latest.unshift(checkpoint);
+  }
+  return latest;
 }
 
 function parsePhase(value: unknown): AutonomousPhase {

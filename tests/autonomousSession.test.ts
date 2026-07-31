@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseAutonomousSession } from "../src/services/autonomousSession.ts";
+import {
+  createLatestRequestGuard,
+  parseAutonomousSession,
+} from "../src/services/autonomousSession.ts";
 
 function sessionFixture() {
   return {
@@ -59,4 +62,42 @@ test("autonomous contract keeps the latest durable checkpoint evidence", () => {
   assert.deepEqual(parsed.checkpoints, [
     { id: "checkpoint-1", phase: "lua_generation", timestamp: 200 },
   ]);
+});
+
+test("autonomous contract preserves the latest checkpoint timeline position", () => {
+  const parsed = parseAutonomousSession({
+    ...sessionFixture(),
+    checkpoints: [
+      { id: "a", phase: "blueprint", timestamp: 100 },
+      { id: "b", phase: "lua_generation", timestamp: 110 },
+      { id: "c", phase: "asset_generation", timestamp: 120 },
+      { id: "d", phase: "assembly", timestamp: 130 },
+      { id: "e", phase: "playtest", timestamp: 140 },
+      { id: "f", phase: "repair", timestamp: 150 },
+      { id: "g", phase: "benchmark", timestamp: 160 },
+      { id: "a", phase: "studio_sync", timestamp: 170 },
+    ],
+  });
+
+  assert.deepEqual(
+    parsed.checkpoints.map((checkpoint) => checkpoint.id),
+    ["b", "c", "d", "e", "f", "g", "a"],
+  );
+  assert.deepEqual(parsed.checkpoints.at(-1), {
+    id: "a",
+    phase: "studio_sync",
+    timestamp: 170,
+  });
+});
+
+test("reconciliation guard rejects superseded and invalidated responses", () => {
+  const guard = createLatestRequestGuard();
+  const first = guard.begin();
+  const second = guard.begin();
+
+  assert.equal(guard.isCurrent(first), false);
+  assert.equal(guard.isCurrent(second), true);
+
+  guard.invalidate();
+  assert.equal(guard.isCurrent(second), false);
 });

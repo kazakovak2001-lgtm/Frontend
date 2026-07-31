@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, CirclePause, Play, RotateCcw, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { backendApi, BackendApiError } from "@/services/backendApi";
-import type { AutonomousSession } from "@/services/autonomousSession";
+import {
+  createLatestRequestGuard,
+  type AutonomousSession,
+} from "@/services/autonomousSession";
 import { getRealtimeSocket } from "@/services/realtime";
 import type { Project } from "@/types";
 
@@ -15,13 +18,17 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
   const [mutation, setMutation] = useState<Mutation>();
   const [error, setError] = useState<string>();
   const [connected, setConnected] = useState(false);
+  const reconciliationGuard = useRef(createLatestRequestGuard()).current;
 
   const reconcile = useCallback(async () => {
+    const requestId = reconciliationGuard.begin();
     try {
       const latest = await backendApi.workspace.autonomous.latest(project.id);
+      if (!reconciliationGuard.isCurrent(requestId)) return;
       setSession(latest);
       setError(undefined);
     } catch (caught) {
+      if (!reconciliationGuard.isCurrent(requestId)) return;
       if (caught instanceof BackendApiError && caught.status === 404) {
         setSession(undefined);
         setError(undefined);
@@ -29,11 +36,14 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
         setError(describeError(caught));
       }
     } finally {
-      setLoading(false);
+      if (reconciliationGuard.isCurrent(requestId)) setLoading(false);
     }
-  }, [project.id]);
+  }, [project.id, reconciliationGuard]);
 
   useEffect(() => {
+    reconciliationGuard.invalidate();
+    setLoading(true);
+    setSession(undefined);
     void reconcile();
     const socket = getRealtimeSocket();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -61,20 +71,22 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
     socket.on("disconnect", onDisconnect);
     socket.onAny(onAny);
     return () => {
+      reconciliationGuard.invalidate();
       if (timer) clearTimeout(timer);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.offAny(onAny);
     };
-  }, [project.id, reconcile]);
+  }, [project.id, reconcile, reconciliationGuard]);
 
   const mutate = async (kind: Mutation, operation: () => Promise<unknown>) => {
+    reconciliationGuard.invalidate();
     setMutation(kind);
     setError(undefined);
     try {
       const result = await operation();
       if (kind === "start") setSession(result as AutonomousSession);
-      else await reconcile();
+      await reconcile();
     } catch (caught) {
       setError(describeError(caught));
     } finally {
