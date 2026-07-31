@@ -19,6 +19,7 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "bundle:check": "node scripts/ci/check-bundle-budget.mjs",
     "quality": "npm run typecheck && npm run lint && npm run format:check"
   },
   "dependencies": {

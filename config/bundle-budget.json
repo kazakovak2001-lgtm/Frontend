@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "assetsRoot": ".output/public/assets",
+  "evidencePath": "artifacts/bundle-budget/bundle-budget.json",
+  "budgets": {
+    "maxClientAssetBytes": 1750000,
+    "maxClientJsBytes": 1425000,
+    "maxClientJsGzipBytes": 410000,
+    "maxClientJsChunkBytes": 625000,
+    "maxClientJsChunkGzipBytes": 155000,
+    "maxClientCssBytes": 105000
+  },
+  "baseline": {
+    "sourceCommit": "6c9438331d0779939745469841bbc1e6c1758b9b",
+    "measuredAt": "2026-07-28",
+    "clientAssetBytes": 1674932,
+    "clientJsBytes": 1354129,
+    "clientJsGzipBytes": 391202,
+    "largestClientJsChunkBytes": 593856,
+    "largestClientJsChunkGzipBytes": 145528,
+    "clientCssBytes": 96916
+  }
+}
