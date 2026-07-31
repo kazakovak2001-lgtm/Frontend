@@ -11,7 +11,10 @@ interface LogoProps {
 
 export function Logo({ className, showText = true, to = "/" }: LogoProps) {
   return (
-    <Link to={to} className={cn("flex items-center gap-2.5 font-display", className)}>
+    <Link
+      to={to}
+      className={cn("flex items-center gap-2.5 font-display", className)}
+    >
       <img
         src={logo}
         alt={`${APP_NAME} logo`}

@@ -26,7 +26,11 @@ const LABELS: Record<string, string> = {
   error: "Error",
 };
 
-export function StatusBadge({ status }: { status: ProjectStatus | AgentStatus }) {
+export function StatusBadge({
+  status,
+}: {
+  status: ProjectStatus | AgentStatus;
+}) {
   const pulsing = status === "generating" || status === "running";
   return (
     <Badge

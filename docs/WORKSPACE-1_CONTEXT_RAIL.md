@@ -23,13 +23,13 @@ No new data store, HTTP client, backend endpoint, or realtime subscription is in
 
 ## Scoped Tool Placement
 
-| Workflow stage | Embedded scoped tools |
-| --- | --- |
-| Define | Knowledge, concept/architecture/domain, memory/collaboration |
-| Generate | Planning/autonomous generation, compile/Lua/assets |
-| Validate | Controller, simulation, economy, world/lifecycle, quality |
-| Integrate | Project versioning; the dedicated Studio panel remains canonical |
-| Operate | System/agents, analytics, distributed runtime/diagnostics |
+| Workflow stage | Embedded scoped tools                                            |
+| -------------- | ---------------------------------------------------------------- |
+| Define         | Knowledge, concept/architecture/domain, memory/collaboration     |
+| Generate       | Planning/autonomous generation, compile/Lua/assets               |
+| Validate       | Controller, simulation, economy, world/lifecycle, quality        |
+| Integrate      | Project versioning; the dedicated Studio panel remains canonical |
+| Operate        | System/agents, analytics, distributed runtime/diagnostics        |
 
 The previous all-tools compatibility mode remains available inside `WorkspaceModules`, but the project route now uses explicit stage scopes.
 
