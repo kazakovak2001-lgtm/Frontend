@@ -258,3 +258,10 @@ jobs:
       [
         typecheck,
         workspace-tests,
+        build,
+        responsive-qa,
+        frontend-image,
+        production-contract,
+      ]
+    steps:
+      - run: echo "All Frontend checks passed"
