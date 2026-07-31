@@ -39,6 +39,7 @@ import {
   type WorkspaceModuleStage,
 } from "@/components/workspace/workspaceLogic";
 import { toast } from "sonner";
+import { AutonomousSessionPanel } from "@/components/workspace/AutonomousSessionPanel";
 
 export type { WorkspaceModuleStage } from "@/components/workspace/workspaceLogic";
 
@@ -54,6 +55,7 @@ interface ToolDefinition {
   title: string;
   description: string;
   actions: ReactNode;
+  content?: ReactNode;
   wide?: boolean;
 }
 
@@ -385,21 +387,9 @@ export function WorkspaceModules({
           >
             Generation core
           </Button>
-          <Button
-            size="sm"
-            disabled={states.planning.loading}
-            onClick={() =>
-              void run(
-                "planning",
-                () => backendApi.workspace.autonomous(project),
-                "Autonomous session started.",
-              )
-            }
-          >
-            Start autonomous
-          </Button>
         </>
       ),
+      content: <AutonomousSessionPanel project={project} />,
     },
     {
       key: "build",
@@ -651,6 +641,7 @@ export function WorkspaceModules({
             description={tool.description}
             state={states[tool.key]}
             actions={tool.actions}
+            content={tool.content}
             wide={tool.wide}
           />
         ))}
@@ -664,6 +655,7 @@ function ModuleCard({
   description,
   state,
   actions,
+  content,
   wide = false,
 }: {
   icon: ReactNode;
@@ -671,6 +663,7 @@ function ModuleCard({
   description: string;
   state: ModuleState;
   actions: ReactNode;
+  content?: ReactNode;
   wide?: boolean;
 }) {
   return (
@@ -699,6 +692,7 @@ function ModuleCard({
         </p>
       )}
       {state.data !== undefined && <WorkspaceModuleResult data={state.data} />}
+      {content}
       <div className="flex flex-wrap gap-2">{actions}</div>
     </Card>
   );

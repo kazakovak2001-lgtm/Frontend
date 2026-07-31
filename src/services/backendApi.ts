@@ -1,4 +1,8 @@
 import type { ChatMessage, Project, User } from "@/types";
+import {
+  parseAutonomousSession,
+  type AutonomousSession,
+} from "@/services/autonomousSession";
 
 const API_BASE_URL = (
   (import.meta.env.VITE_API_URL as string | undefined) ??
@@ -691,15 +695,56 @@ export const backendApi = {
       ]);
       return { recommendations, benchmark };
     },
-    autonomous: (project: Project) =>
-      request<JsonRecord>(
-        "/autonomous/run",
-        json("POST", {
-          prompt: projectIntent(project),
-          projectId: project.id,
-          goals: ["playable core loop", "validated architecture"],
-        }),
-      ),
+    autonomous: {
+      async start(project: Project): Promise<AutonomousSession> {
+        const started = await request<{ sessionId: string }>(
+          "/autonomous/run",
+          json("POST", {
+            prompt: projectIntent(project),
+            projectId: project.id,
+          }),
+        );
+        return parseAutonomousSession(
+          await request<unknown>(
+            `/autonomous/status/${encodeURIComponent(started.sessionId)}`,
+          ),
+        );
+      },
+      async latest(projectId: string): Promise<AutonomousSession> {
+        return parseAutonomousSession(
+          await request<unknown>(
+            `/autonomous/project/${encodeURIComponent(projectId)}/latest`,
+          ),
+        );
+      },
+      async status(sessionId: string): Promise<AutonomousSession> {
+        return parseAutonomousSession(
+          await request<unknown>(
+            `/autonomous/status/${encodeURIComponent(sessionId)}`,
+          ),
+        );
+      },
+      pause: (sessionId: string) =>
+        request<{ status: string }>(
+          `/autonomous/pause/${encodeURIComponent(sessionId)}`,
+          { method: "POST" },
+        ),
+      resume: (sessionId: string) =>
+        request<{ status: string }>(
+          `/autonomous/resume/${encodeURIComponent(sessionId)}`,
+          { method: "POST" },
+        ),
+      recover: (sessionId: string, checkpointId?: string) =>
+        request<{ status: string }>(
+          `/autonomous/recover/${encodeURIComponent(sessionId)}`,
+          json("POST", { checkpointId }),
+        ),
+      cancel: (sessionId: string) =>
+        request<{ status: string }>(
+          `/autonomous/cancel/${encodeURIComponent(sessionId)}`,
+          { method: "POST" },
+        ),
+    },
     distributed: {
       async status() {
         const [cluster, queue, workers] = await Promise.all([
