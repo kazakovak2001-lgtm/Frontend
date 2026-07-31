@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { getRealtimeSocket } from "@/services/realtime";
 import {
+  bindProjectRealtimeSocket,
+  type ProjectRealtimeSocket,
+} from "@/services/projectRealtimeBinding";
+import {
   useWorkspace,
   type WorkspaceRealtimeSnapshot,
 } from "@/contexts/WorkspaceContext";
@@ -64,10 +68,7 @@ export function useProjectRealtime(projectId?: string) {
       });
     };
 
-    const onConnect = () => {
-      update({ connected: true });
-      socket.emit("project:join", { projectId });
-    };
+    const onConnect = () => update({ connected: true });
     const onDisconnect = () => update({ connected: false });
     const onAny = (type: string, rawPayload: unknown) => {
       const payload =
@@ -155,17 +156,13 @@ export function useProjectRealtime(projectId?: string) {
       }
     };
 
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
-    socket.onAny(onAny);
-    if (socket.connected) onConnect();
-
-    return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-      socket.offAny(onAny);
-      socket.emit("project:leave", { projectId });
-    };
+    return bindProjectRealtimeSocket({
+      socket: socket as unknown as ProjectRealtimeSocket,
+      projectId,
+      onConnect,
+      onDisconnect,
+      onAny,
+    });
   }, [projectId]);
 
   const logs = useMemo<LogEntry[]>(
