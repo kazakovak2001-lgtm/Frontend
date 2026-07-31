@@ -206,10 +206,14 @@ async function waitForTerminalGeneration(projectId, executionId) {
   throw new Error(`Generation ${executionId} did not reach a terminal state`);
 }
 
-async function waitForTerminalStatus(path, label) {
+async function waitForTerminalStatus(
+  path,
+  label,
+  terminalStatuses = ["completed", "failed", "cancelled"],
+) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const state = await request(path);
-    if (["completed", "failed", "cancelled"].includes(state.status)) {
+    if (terminalStatuses.includes(state.status)) {
       return state;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
@@ -703,11 +707,38 @@ async function main() {
     const terminal = await waitForTerminalStatus(
       `/autonomous/status/${autonomous.sessionId}`,
       `Autonomous session ${autonomous.sessionId}`,
+      ["preview_completed", "failed", "cancelled"],
     );
+    const autonomousPhases = new Map(
+      terminal.phases.map((phase) => [phase.phase, phase]),
+    );
+    const luaPhase = autonomousPhases.get("lua_generation");
+    const playtestPhase = autonomousPhases.get("playtest");
+    const repairPhase = autonomousPhases.get("repair");
+    const studioSyncPhase = autonomousPhases.get("studio_sync");
     assert(
       Array.isArray(collaboration.tasks) &&
         autonomous.sessionId &&
-        terminal.status === "completed",
+        autonomous.productionCompleted === false &&
+        terminal.status === "preview_completed" &&
+        terminal.executionMode === "bounded" &&
+        terminal.resultAuthority === "preview-only" &&
+        Number.isFinite(terminal.qualityScore) &&
+        terminal.qualityScore >= 0 &&
+        terminal.qualityScore <= 100 &&
+        terminal.cost?.totalCost === 0 &&
+        terminal.cost?.source === "measured" &&
+        luaPhase?.status === "completed" &&
+        luaPhase?.evidence === "verified" &&
+        luaPhase?.capability === "available" &&
+        playtestPhase?.status === "completed" &&
+        playtestPhase?.evidence === "heuristic" &&
+        playtestPhase?.capability === "degraded" &&
+        playtestPhase?.output?.runtimeExecuted === false &&
+        repairPhase?.status === "skipped" &&
+        repairPhase?.capability === "unavailable" &&
+        studioSyncPhase?.status === "skipped" &&
+        studioSyncPhase?.capability === "unavailable",
       "Collaboration or autonomous contract is incomplete",
     );
   });
