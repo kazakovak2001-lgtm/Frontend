@@ -39,6 +39,7 @@ import {
   type WorkspaceModuleStage,
 } from "@/components/workspace/workspaceLogic";
 import { toast } from "sonner";
+import { AutonomousSessionPanel } from "@/components/workspace/AutonomousSessionPanel";
 
 export type { WorkspaceModuleStage } from "@/components/workspace/workspaceLogic";
 
@@ -54,6 +55,7 @@ interface ToolDefinition {
   title: string;
   description: string;
   actions: ReactNode;
+  content?: ReactNode;
   wide?: boolean;
 }
 
@@ -239,7 +241,8 @@ export function WorkspaceModules({
       key: "economy",
       icon: <Coins className="h-5 w-5" />,
       title: "Economy",
-      description: "Models currency flow, detects imbalance and suggests patches.",
+      description:
+        "Models currency flow, detects imbalance and suggests patches.",
       actions: (
         <Button
           size="sm"
@@ -260,7 +263,8 @@ export function WorkspaceModules({
       key: "controller",
       icon: <ShieldCheck className="h-5 w-5" />,
       title: "AI Project Controller",
-      description: "Architecture, duplication and pre-implementation governance.",
+      description:
+        "Architecture, duplication and pre-implementation governance.",
       wide: true,
       actions: (
         <>
@@ -383,21 +387,9 @@ export function WorkspaceModules({
           >
             Generation core
           </Button>
-          <Button
-            size="sm"
-            disabled={states.planning.loading}
-            onClick={() =>
-              void run(
-                "planning",
-                () => backendApi.workspace.autonomous(project),
-                "Autonomous session started.",
-              )
-            }
-          >
-            Start autonomous
-          </Button>
         </>
       ),
+      content: <AutonomousSessionPanel project={project} />,
     },
     {
       key: "build",
@@ -549,7 +541,8 @@ export function WorkspaceModules({
       key: "operations",
       icon: <ServerCog className="h-5 w-5" />,
       title: "Distributed Runtime & Diagnostics",
-      description: "Inspects workers, queues, API versions and execution traces.",
+      description:
+        "Inspects workers, queues, API versions and execution traces.",
       wide: true,
       actions: (
         <>
@@ -601,7 +594,8 @@ export function WorkspaceModules({
       key: "versions",
       icon: <History className="h-5 w-5" />,
       title: "Project Versioning",
-      description: "Persists and reloads named backend snapshots of this project.",
+      description:
+        "Persists and reloads named backend snapshots of this project.",
       wide: true,
       actions: (
         <>
@@ -647,6 +641,7 @@ export function WorkspaceModules({
             description={tool.description}
             state={states[tool.key]}
             actions={tool.actions}
+            content={tool.content}
             wide={tool.wide}
           />
         ))}
@@ -660,6 +655,7 @@ function ModuleCard({
   description,
   state,
   actions,
+  content,
   wide = false,
 }: {
   icon: ReactNode;
@@ -667,6 +663,7 @@ function ModuleCard({
   description: string;
   state: ModuleState;
   actions: ReactNode;
+  content?: ReactNode;
   wide?: boolean;
 }) {
   return (
@@ -695,6 +692,7 @@ function ModuleCard({
         </p>
       )}
       {state.data !== undefined && <WorkspaceModuleResult data={state.data} />}
+      {content}
       <div className="flex flex-wrap gap-2">{actions}</div>
     </Card>
   );
