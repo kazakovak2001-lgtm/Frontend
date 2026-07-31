@@ -2,12 +2,13 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
-import * as Icons from "lucide-react";
+import { Bot, type LucideIcon } from "lucide-react";
 import type { Agent } from "@/types";
 
+const AGENT_ICONS: Readonly<Record<string, LucideIcon>> = { Bot };
+
 export function AgentCard({ agent }: { agent: Agent }) {
-  const Icon = (Icons[agent.icon as keyof typeof Icons] ??
-    Icons.Bot) as Icons.LucideIcon;
+  const Icon = AGENT_ICONS[agent.icon] ?? Bot;
 
   return (
     <Card className="border-border/60 bg-card/50 p-5 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow">
