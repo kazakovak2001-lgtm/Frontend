@@ -83,6 +83,10 @@ test("autonomous contract preserves the latest checkpoint timeline position", ()
     parsed.checkpoints.map((checkpoint) => checkpoint.id),
     ["b", "c", "d", "e", "f", "g", "a"],
   );
+  assert.deepEqual(
+    parsed.checkpoints.map((checkpoint) => checkpoint.timestamp),
+    [110, 120, 130, 140, 150, 160, 170],
+  );
   assert.deepEqual(parsed.checkpoints.at(-1), {
     id: "a",
     phase: "studio_sync",

@@ -127,7 +127,7 @@ function deduplicateLatestCheckpoints(
     seen.add(checkpoint.id);
     latest.unshift(checkpoint);
   }
-  return latest;
+  return latest.sort((left, right) => left.timestamp - right.timestamp);
 }
 
 function parsePhase(value: unknown): AutonomousPhase {

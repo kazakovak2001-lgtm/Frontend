@@ -6,11 +6,20 @@ import { backendApi, BackendApiError } from "@/services/backendApi";
 import {
   createLatestRequestGuard,
   type AutonomousSession,
+  type AutonomousSessionStatus,
 } from "@/services/autonomousSession";
 import { getRealtimeSocket } from "@/services/realtime";
 import type { Project } from "@/types";
 
 type Mutation = "start" | "pause" | "resume" | "recover" | "cancel";
+
+const RESTARTABLE_STATUSES: readonly AutonomousSessionStatus[] = [
+  "failed",
+  "cancelled",
+  "preview_completed",
+  "completed",
+  "simulated",
+];
 
 export function AutonomousSessionPanel({ project }: { project: Project }) {
   const [session, setSession] = useState<AutonomousSession>();
@@ -44,6 +53,7 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
     reconciliationGuard.invalidate();
     setLoading(true);
     setSession(undefined);
+    setError(undefined);
     void reconcile();
     const socket = getRealtimeSocket();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -79,13 +89,17 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
     };
   }, [project.id, reconcile, reconciliationGuard]);
 
-  const mutate = async (kind: Mutation, operation: () => Promise<unknown>) => {
+  const mutate = async <Result,>(
+    kind: Mutation,
+    operation: () => Promise<Result>,
+    publishResult?: (result: Result) => void,
+  ) => {
     reconciliationGuard.invalidate();
     setMutation(kind);
     setError(undefined);
     try {
       const result = await operation();
-      if (kind === "start") setSession(result as AutonomousSession);
+      publishResult?.(result);
       await reconcile();
     } catch (caught) {
       setError(describeError(caught));
@@ -99,15 +113,7 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
   }
 
   const interrupted = session?.recoveryReason === "server_restart";
-  const canStart =
-    !session ||
-    [
-      "failed",
-      "cancelled",
-      "preview_completed",
-      "completed",
-      "simulated",
-    ].includes(session.status);
+  const canStart = !session || RESTARTABLE_STATUSES.includes(session.status);
 
   return (
     <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-4">
@@ -132,7 +138,10 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
       </div>
 
       {error && (
-        <p className="flex gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+        <p
+          role="alert"
+          className="flex gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive"
+        >
           <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
         </p>
       )}
@@ -184,8 +193,10 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
             size="sm"
             disabled={Boolean(mutation)}
             onClick={() =>
-              void mutate("start", () =>
-                backendApi.workspace.autonomous.start(project),
+              void mutate(
+                "start",
+                () => backendApi.workspace.autonomous.start(project),
+                setSession,
               )
             }
           >
