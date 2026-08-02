@@ -111,6 +111,79 @@ const replacements = [
   });
 `,
   },
+  {
+    name: "memory and evaluation",
+    legacy: `  await check("memory and evaluation modules", async () => {
+    await request(
+      "/memory/store",
+      json("POST", {
+        agentId: "e2e",
+        projectId: project.id,
+        input: { project: project.name },
+        output: { verified: true },
+        tags: ["e2e"],
+      }),
+    );
+    const [memory, stats, evaluation, evaluationHistory] = await Promise.all([
+      request(
+        "/memory/search",
+        json("POST", {
+          agentId: "e2e",
+          projectId: project.id,
+          query: project.name,
+        }),
+      ),
+      request("/memory/system/stats"),
+      request("/evaluation/run", json("POST", {})),
+      request("/evaluation/history"),
+    ]);
+    assert(
+      memory && stats.store && evaluation && evaluationHistory.summaries,
+      "Memory or evaluation contract is incomplete",
+    );
+  });
+`,
+    secured: `  await check("memory project access and operator boundaries", async () => {
+    await request(
+      "/memory/store",
+      json("POST", {
+        agentId: "e2e",
+        projectId: project.id,
+        input: { project: project.name },
+        output: { verified: true },
+        tags: ["e2e"],
+      }),
+    );
+    const [memory, stats, evaluation, evaluationHistory] = await Promise.all([
+      request(
+        "/memory/search",
+        json("POST", {
+          agentId: "e2e",
+          projectId: project.id,
+          query: project.name,
+        }),
+      ),
+      request("/memory/system/stats", {}, 403),
+      request("/evaluation/run", json("POST", {}), 403),
+      request("/evaluation/history", {}, 403),
+    ]);
+    assert(memory, "Project-scoped memory search contract is incomplete");
+    assert(
+      stats.success === false &&
+        stats.error === "Memory operator access required",
+      "Memory operator boundary contract is invalid",
+    );
+    assert(
+      [evaluation, evaluationHistory].every(
+        (payload) =>
+          payload.success === false &&
+          payload.error === "Evaluation operator access required",
+      ),
+      "Evaluation operator boundary contract is invalid",
+    );
+  });
+`,
+  },
 ];
 
 let generated = await readFile(sourceUrl, "utf8");
