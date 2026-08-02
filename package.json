@@ -15,7 +15,7 @@
     "start": "node scripts/runtime/serve-frontend.mjs",
     "typecheck": "tsc --noEmit",
     "test:workspace": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:e2e:integration": "node scripts/e2e-backend.mjs",
+    "test:e2e:integration": "node scripts/e2e-backend-rbac.mjs",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
