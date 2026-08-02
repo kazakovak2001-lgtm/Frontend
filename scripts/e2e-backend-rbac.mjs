@@ -6,9 +6,9 @@ const sourceUrl = new URL("./e2e-backend.mjs", import.meta.url);
 const generatedUrl = new URL("./.e2e-backend-rbac.generated.mjs", import.meta.url);
 
 const replacements = [
-  {
-    name: "analytics",
-    legacy: `  await check("analytics module", async () => {
+  [
+    "analytics module",
+    `  await check("analytics module", async () => {
     const [system, agents, suggestions, cycle] = await Promise.all([
       request("/analytics/system"),
       request("/analytics/agents"),
@@ -21,15 +21,15 @@ const replacements = [
     );
   });
 `,
-    secured: `  await check("analytics operator boundary", async () => {
-    const [system, agents, suggestions, cycle] = await Promise.all([
+    `  await check("analytics operator boundary", async () => {
+    const payloads = await Promise.all([
       request("/analytics/system", {}, 403),
       request("/analytics/agents", {}, 403),
       request("/analytics/suggestions", {}, 403),
       request("/analytics/cycle", { method: "POST" }, 403),
     ]);
     assert(
-      [system, agents, suggestions, cycle].every(
+      payloads.every(
         (payload) =>
           payload.success === false &&
           payload.error === "Analytics operator access required",
@@ -38,10 +38,10 @@ const replacements = [
     );
   });
 `,
-  },
-  {
-    name: "controller",
-    legacy: `  await check("AI project controller", async () => {
+  ],
+  [
+    "controller",
+    `  await check("AI project controller", async () => {
     const [health, preCheck, architecture, duplicates] = await Promise.all([
       request("/controller/health"),
       request(
@@ -72,8 +72,8 @@ const replacements = [
     );
   });
 `,
-    secured: `  await check("controller operator boundary", async () => {
-    const [health, preCheck, architecture, duplicates] = await Promise.all([
+    `  await check("controller operator boundary", async () => {
+    const payloads = await Promise.all([
       request("/controller/health", {}, 403),
       request(
         "/controller/pre-check",
@@ -101,7 +101,7 @@ const replacements = [
       ),
     ]);
     assert(
-      [health, preCheck, architecture, duplicates].every(
+      payloads.every(
         (payload) =>
           payload.success === false &&
           payload.error === "Controller operator access required",
@@ -110,10 +110,10 @@ const replacements = [
     );
   });
 `,
-  },
-  {
-    name: "memory and evaluation",
-    legacy: `  await check("memory and evaluation modules", async () => {
+  ],
+  [
+    "memory and evaluation",
+    `  await check("memory and evaluation modules", async () => {
     await request(
       "/memory/store",
       json("POST", {
@@ -143,7 +143,7 @@ const replacements = [
     );
   });
 `,
-    secured: `  await check("memory project access and operator boundaries", async () => {
+    `  await check("memory project access and operator boundaries", async () => {
     await request(
       "/memory/store",
       json("POST", {
@@ -169,8 +169,7 @@ const replacements = [
     ]);
     assert(memory, "Project-scoped memory search contract is incomplete");
     assert(
-      stats.success === false &&
-        stats.error === "Memory operator access required",
+      stats.success === false && stats.error === "Memory operator access required",
       "Memory operator boundary contract is invalid",
     );
     assert(
@@ -183,18 +182,79 @@ const replacements = [
     );
   });
 `,
-  },
+  ],
+  [
+    "distributed",
+    `  await check("distributed runtime and diagnostics", async () => {
+    const [cluster, queue, workers, submitted, traces] = await Promise.all([
+      request("/distributed/cluster"),
+      request("/distributed/queue"),
+      request("/distributed/workers"),
+      request(
+        "/distributed/submit",
+        json("POST", {
+          intent: \`Validate distributed execution for \${project.name}\`,
+          projectId: project.id,
+          priority: "normal",
+        }),
+      ),
+      request("/debug/executions"),
+    ]);
+    const terminalJob = await waitForTerminalStatus(
+      \`/distributed/job/\${submitted.jobId}\`,
+      \`Distributed job \${submitted.jobId}\`,
+    );
+    assert(
+      cluster.totalWorkers > 0 &&
+        queue &&
+        workers.count > 0 &&
+        submitted.jobId &&
+        terminalJob.status === "completed" &&
+        Array.isArray(traces.executions),
+      "Distributed runtime or diagnostics contract is incomplete",
+    );
+  });
+`,
+    `  await check("distributed operator boundary and project submission", async () => {
+    const [cluster, queue, workers, traces, submitted] = await Promise.all([
+      request("/distributed/cluster", {}, 403),
+      request("/distributed/queue", {}, 403),
+      request("/distributed/workers", {}, 403),
+      request("/debug/executions", {}, 403),
+      request(
+        "/distributed/submit",
+        json("POST", {
+          intent: \`Validate distributed execution for \${project.name}\`,
+          projectId: project.id,
+          priority: "normal",
+        }),
+      ),
+    ]);
+    assert(submitted.jobId, "Distributed project submission contract is incomplete");
+    assert(
+      [cluster, queue, workers].every(
+        (payload) =>
+          payload.success === false &&
+          payload.error === "Distributed operator access required",
+      ),
+      "Distributed operator boundary contract is invalid",
+    );
+    assert(
+      traces.success === false && traces.error === "Debug operator access required",
+      "Debug operator boundary contract is invalid",
+    );
+  });
+`,
+  ],
 ];
 
 let generated = await readFile(sourceUrl, "utf8");
-for (const replacement of replacements) {
-  const occurrences = generated.split(replacement.legacy).length - 1;
+for (const [name, legacy, secured] of replacements) {
+  const occurrences = generated.split(legacy).length - 1;
   if (occurrences !== 1) {
-    throw new Error(
-      `Expected exactly one legacy ${replacement.name} contract block, found ${occurrences}`,
-    );
+    throw new Error(`Expected exactly one legacy ${name} contract block, found ${occurrences}`);
   }
-  generated = generated.replace(replacement.legacy, replacement.secured);
+  generated = generated.replace(legacy, secured);
 }
 
 await writeFile(generatedUrl, generated, "utf8");
