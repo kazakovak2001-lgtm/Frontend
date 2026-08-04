@@ -3,7 +3,7 @@ set -euo pipefail
 
 workspace="${1:-$PWD/integration-workspace}"
 frontend_ref="${INTEGRATION_FRONTEND_REF:-agent/integration-1a-runtime-wiring}"
-backend_sha="${INTEGRATION_BACKEND_SHA:-bd8d8035f7673a5150ed2bdab496a49b8ec2dc8d}"
+backend_sha="${INTEGRATION_BACKEND_SHA:-db79157912adf0d88a7b074f912a15abd87d863d}"
 frontend_repo="https://github.com/kazakovak2001-lgtm/Frontend.git"
 backend_repo="https://github.com/kazakovak2001-lgtm/RobloxAIStudio2.git"
 
