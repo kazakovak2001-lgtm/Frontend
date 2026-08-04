@@ -20,9 +20,12 @@ jobs:
     timeout-minutes: 45
     env:
       FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      BACKEND_SHA: de4c2d3af531155b9ecc88a497bb151d26544922
-      WORKSPACE: ${{ runner.temp }}/integration-1a-clean-clone
+      BACKEND_SHA: bd8d8035f7673a5150ed2bdab496a49b8ec2dc8d
     steps:
+      - name: Initialize clean workspace
+        run: |
+          printf 'WORKSPACE=%s\n' "$RUNNER_TEMP/integration-1a-clean-clone" >> "$GITHUB_ENV"
+
       - name: Checkout orchestration source
         uses: actions/checkout@v4
         with:
@@ -50,9 +53,11 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone"
           cp "$WORKSPACE/Frontend/artifacts/integration-1a/contract.json" \
             "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/contract.json" 2>/dev/null || true
-          cp /tmp/integration-1a-backend-health.json \
+          cp "$WORKSPACE/Frontend/artifacts/integration-1a/browser-runtime.json" \
+            "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/browser-runtime.json" 2>/dev/null || true
+          cp "$WORKSPACE/Frontend/artifacts/integration-1a/backend-health.json" \
             "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/backend-health.json" 2>/dev/null || true
-          cp /tmp/integration-1a-frontend-health.json \
+          cp "$WORKSPACE/Frontend/artifacts/integration-1a/frontend-health.json" \
             "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/frontend-health.json" 2>/dev/null || true
           docker logs roblox-ai-studio-backend-integration-1a \
             > "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/backend.log" 2>&1 || true
