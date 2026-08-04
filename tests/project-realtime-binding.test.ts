@@ -48,7 +48,7 @@ class FakeProjectSocket implements ProjectRealtimeSocket {
   }
 }
 
-test("joins the project room on initial connection and every reconnect", () => {
+test("becomes room-ready only after project:joined and rejoins after reconnect", () => {
   const socket = new FakeProjectSocket();
   const connectionStates: boolean[] = [];
   const events: Array<{ event: string; payload: unknown }> = [];
@@ -62,18 +62,42 @@ test("joins the project room on initial connection and every reconnect", () => {
   });
 
   socket.trigger("connect");
+  assert.deepEqual(connectionStates, []);
+  assert.deepEqual(socket.emissions, [
+    { event: "project:join", projectId: "project-42" },
+  ]);
+
+  socket.triggerAny("project:joined", { projectId: "other-project" });
+  assert.deepEqual(connectionStates, []);
+
+  socket.triggerAny("project:joined", { projectId: "project-42" });
   socket.triggerAny("pipeline.started", { projectId: "project-42" });
   socket.trigger("disconnect");
   socket.trigger("connect");
 
-  assert.deepEqual(connectionStates, [true, false, true]);
+  assert.deepEqual(connectionStates, [true, false]);
   assert.deepEqual(socket.emissions, [
     { event: "project:join", projectId: "project-42" },
     { event: "project:join", projectId: "project-42" },
   ]);
+
+  socket.triggerAny("project:joined", { projectId: "project-42" });
+  assert.deepEqual(connectionStates, [true, false, true]);
   assert.deepEqual(events, [
     {
+      event: "project:joined",
+      payload: { projectId: "other-project" },
+    },
+    {
+      event: "project:joined",
+      payload: { projectId: "project-42" },
+    },
+    {
       event: "pipeline.started",
+      payload: { projectId: "project-42" },
+    },
+    {
+      event: "project:joined",
       payload: { projectId: "project-42" },
     },
   ]);
@@ -90,28 +114,53 @@ test("joins the project room on initial connection and every reconnect", () => {
     socket.emissions.filter(({ event }) => event === "project:join").length,
     2,
   );
-  assert.equal(events.length, 1);
+  assert.equal(events.length, 4);
 });
 
-test("immediately joins when binding an already connected socket", () => {
+test("requests a join immediately for an already connected transport", () => {
   const socket = new FakeProjectSocket();
   socket.connected = true;
-  let connectedCalls = 0;
+  let roomReadyCalls = 0;
 
   const cleanup = bindProjectRealtimeSocket({
     socket,
     projectId: "project-live",
     onConnect: () => {
-      connectedCalls += 1;
+      roomReadyCalls += 1;
     },
     onDisconnect: () => undefined,
     onAny: () => undefined,
   });
 
-  assert.equal(connectedCalls, 1);
+  assert.equal(roomReadyCalls, 0);
   assert.deepEqual(socket.emissions[0], {
     event: "project:join",
     projectId: "project-live",
   });
+
+  socket.triggerAny("project:joined", { projectId: "project-live" });
+  assert.equal(roomReadyCalls, 1);
+  cleanup();
+});
+
+test("marks the project room unavailable when the server rejects the join", () => {
+  const socket = new FakeProjectSocket();
+  const connectionStates: boolean[] = [];
+
+  const cleanup = bindProjectRealtimeSocket({
+    socket,
+    projectId: "project-denied",
+    onConnect: () => connectionStates.push(true),
+    onDisconnect: () => connectionStates.push(false),
+    onAny: () => undefined,
+  });
+
+  socket.trigger("connect");
+  socket.triggerAny("project:error", {
+    projectId: "project-denied",
+    error: "Project access denied",
+  });
+
+  assert.deepEqual(connectionStates, [false]);
   cleanup();
 });

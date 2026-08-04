@@ -47,7 +47,7 @@ export function useProjectRealtime(projectId?: string) {
     setAgents([]);
     setLocalSnapshot({
       ...INITIAL_SNAPSHOT,
-      connected: socket.connected,
+      connected: false,
       updatedAt: new Date().toISOString(),
     });
 
@@ -68,6 +68,8 @@ export function useProjectRealtime(projectId?: string) {
       });
     };
 
+    // `connected` means the server acknowledged membership in this project's
+    // room, not merely that the Socket.IO transport is connected.
     const onConnect = () => update({ connected: true });
     const onDisconnect = () => update({ connected: false });
     const onAny = (type: string, rawPayload: unknown) => {

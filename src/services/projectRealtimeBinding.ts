@@ -17,6 +17,12 @@ export interface ProjectRealtimeBindingOptions {
   onAny: RealtimeAnyHandler;
 }
 
+function payloadProjectId(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const projectId = (payload as { projectId?: unknown }).projectId;
+  return typeof projectId === "string" ? projectId : undefined;
+}
+
 export function bindProjectRealtimeSocket({
   socket,
   projectId,
@@ -24,23 +30,33 @@ export function bindProjectRealtimeSocket({
   onDisconnect,
   onAny,
 }: ProjectRealtimeBindingOptions): () => void {
-  const handleConnect = () => {
-    onConnect();
+  const requestProjectJoin = () => {
     socket.emit("project:join", { projectId });
   };
 
-  socket.on("connect", handleConnect);
+  const handleAny: RealtimeAnyHandler = (event, payload) => {
+    if (payloadProjectId(payload) === projectId) {
+      if (event === "project:joined") {
+        onConnect();
+      } else if (event === "project:error") {
+        onDisconnect();
+      }
+    }
+    onAny(event, payload);
+  };
+
+  socket.on("connect", requestProjectJoin);
   socket.on("disconnect", onDisconnect);
-  socket.onAny(onAny);
+  socket.onAny(handleAny);
 
   if (socket.connected) {
-    handleConnect();
+    requestProjectJoin();
   }
 
   return () => {
-    socket.off("connect", handleConnect);
+    socket.off("connect", requestProjectJoin);
     socket.off("disconnect", onDisconnect);
-    socket.offAny(onAny);
+    socket.offAny(handleAny);
     socket.emit("project:leave", { projectId });
   };
 }
