@@ -13,6 +13,7 @@ jobs:
   wire:
     if: github.event.pull_request.number == 28 && github.event.pull_request.head.ref == 'agent/integration-1a-runtime-wiring'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
