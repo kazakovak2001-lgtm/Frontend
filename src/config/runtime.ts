@@ -43,6 +43,6 @@ export function resolveRuntimeEndpoints(
 }
 
 const viteEnvironment =
-  ((import.meta as ImportMeta & { env?: RuntimeEndpointEnvironment }).env ?? {});
+  (import.meta as ImportMeta & { env?: RuntimeEndpointEnvironment }).env ?? {};
 
 export const runtimeEndpoints = resolveRuntimeEndpoints(viteEnvironment);
