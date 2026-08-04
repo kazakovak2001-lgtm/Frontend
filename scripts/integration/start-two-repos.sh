@@ -16,11 +16,6 @@ api_url="http://127.0.0.1:5051/api"
 socket_url="http://127.0.0.1:5051"
 frontend_origin="http://127.0.0.1:4173"
 
-cleanup_on_error() {
-  docker rm --force "$frontend_container" "$backend_container" >/dev/null 2>&1 || true
-}
-trap cleanup_on_error ERR
-
 node "$INTEGRATION_FRONTEND_DIR/scripts/integration/verify-paired-repositories.mjs"
 
 docker rm --force "$frontend_container" "$backend_container" >/dev/null 2>&1 || true
@@ -78,6 +73,13 @@ for attempt in $(seq 1 30); do
   fi
   sleep 1
 done
+
+npm --prefix "$INTEGRATION_FRONTEND_DIR" install --no-save --package-lock=false playwright@1.57.0
+npx --prefix "$INTEGRATION_FRONTEND_DIR" playwright install chromium
+E2E_API_URL="$api_url" \
+E2E_FRONTEND_ORIGIN="$frontend_origin" \
+  node "$INTEGRATION_FRONTEND_DIR/scripts/integration/browser-runtime-smoke.mjs" \
+  >"$INTEGRATION_FRONTEND_DIR/artifacts/integration-1a/browser-runtime.json"
 
 E2E_API_URL="$api_url" \
 E2E_SOCKET_URL="$socket_url" \
