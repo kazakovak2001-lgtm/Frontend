@@ -203,7 +203,7 @@ jobs:
     name: Production Paired Contract
     runs-on: ubuntu-latest
     env:
-      INT201_BACKEND_SHA: bd8d8035f7673a5150ed2bdab496a49b8ec2dc8d
+      INT201_BACKEND_SHA: db79157912adf0d88a7b074f912a15abd87d863d
       INT201_FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       INT201_FRONTEND_ORIGIN: http://127.0.0.1:4173
       INT201_API_URL: http://127.0.0.1:5051/api
