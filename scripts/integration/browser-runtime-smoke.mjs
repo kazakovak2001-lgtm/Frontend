@@ -7,7 +7,7 @@ if (!frontendOrigin || !expectedApiUrl) {
   throw new Error("E2E_FRONTEND_ORIGIN and E2E_API_URL are required");
 }
 
-const expectedSessionUrl = `${expectedApiUrl.replace(/\/$/, "")}/auth/me`;
+const expectedSessionUrl = `${expectedApiUrl.replace(/\/$/, "")}/platform/auth/me`;
 const browser = await chromium.launch({ headless: true });
 
 try {
