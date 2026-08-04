@@ -22,7 +22,14 @@ fi
 mkdir -p "$workspace"
 workspace="$(cd "$workspace" && pwd)"
 git clone --no-checkout "$frontend_repo" "$workspace/Frontend"
-git -C "$workspace/Frontend" checkout --detach "$frontend_ref"
+if [[ "$frontend_ref" =~ ^[0-9a-fA-F]{40}$ ]]; then
+  resolved_frontend_ref="$frontend_ref"
+else
+  resolved_frontend_ref="origin/$frontend_ref"
+fi
+git -C "$workspace/Frontend" rev-parse --verify "${resolved_frontend_ref}^{commit}" >/dev/null
+git -C "$workspace/Frontend" checkout --detach "$resolved_frontend_ref"
+
 git clone --no-checkout "$backend_repo" "$workspace/RobloxAIStudio2"
 git -C "$workspace/RobloxAIStudio2" checkout --detach "$backend_sha"
 
