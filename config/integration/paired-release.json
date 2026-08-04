@@ -11,7 +11,7 @@
     "releaseBranch": "release/cutover-1e-candidate",
     "baselineSha": "3a00c4709d147792a6e948e6d657ae06c01291ce",
     "candidateBranch": "agent/integration-1a-contract-baseline",
-    "candidateSha": "de4c2d3af531155b9ecc88a497bb151d26544922"
+    "candidateSha": "bd8d8035f7673a5150ed2bdab496a49b8ec2dc8d"
   },
   "contract": {
     "backendPaths": [
