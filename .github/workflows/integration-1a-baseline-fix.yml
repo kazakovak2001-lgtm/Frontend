@@ -1,0 +1,66 @@
+name: INTEGRATION-1A Baseline Fix
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/integration-1a-baseline-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.number == 28 && github.event.pull_request.head.ref == 'agent/integration-1a-runtime-wiring'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/integration-1a-runtime-wiring
+          fetch-depth: 0
+      - name: Repair exact integration baseline
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/ci.yml')
+          text = workflow.read_text()
+          old = 'INT201_BACKEND_SHA: 9c9552385305f376a7f2490f7068e430f3c19d64'
+          new = 'INT201_BACKEND_SHA: 3a00c4709d147792a6e948e6d657ae06c01291ce'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one stale backend SHA, found {text.count(old)}')
+          workflow.write_text(text.replace(old, new, 1))
+
+          script = Path('scripts/e2e-backend-rbac.mjs')
+          text = script.read_text()
+          old_url = 'const generatedUrl = new URL("./.e2e-backend-rbac.generated.mjs", import.meta.url);'
+          new_url = '''const generatedUrl = new URL(\n  "./.e2e-backend-rbac.generated.mjs",\n  import.meta.url,\n);'''
+          old_error = '    throw new Error(`Expected exactly one legacy ${name} contract block, found ${occurrences}`);'
+          new_error = '''    throw new Error(\n      `Expected exactly one legacy ${name} contract block, found ${occurrences}`,\n    );'''
+          for old_value, new_value in ((old_url, new_url), (old_error, new_error)):
+              if text.count(old_value) != 1:
+                  raise SystemExit(f'expected one formatting anchor, found {text.count(old_value)}')
+              text = text.replace(old_value, new_value, 1)
+          script.write_text(text)
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Verify bounded repair
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run format:check
+          allowed='^(\.github/workflows/ci\.yml|scripts/e2e-backend-rbac\.mjs)$'
+          unexpected="$(git diff --name-only | grep -v -E "$allowed" || true)"
+          test -z "$unexpected"
+          git diff --check
+      - name: Commit repair
+        run: |
+          git add -- .github/workflows/ci.yml scripts/e2e-backend-rbac.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(integration): align frontend contract baseline'
+          git push origin HEAD:agent/integration-1a-runtime-wiring
