@@ -20,6 +20,7 @@ if [[ -e "$workspace" ]] && [[ -n "$(find "$workspace" -mindepth 1 -maxdepth 1 -
 fi
 
 mkdir -p "$workspace"
+workspace="$(cd "$workspace" && pwd)"
 git clone --branch "$frontend_ref" --single-branch "$frontend_repo" "$workspace/Frontend"
 git clone --no-checkout "$backend_repo" "$workspace/RobloxAIStudio2"
 git -C "$workspace/RobloxAIStudio2" checkout --detach "$backend_sha"
@@ -34,12 +35,12 @@ actual_backend_sha="$(git -C "$workspace/RobloxAIStudio2" rev-parse HEAD)"
 npm --prefix "$workspace/Frontend" ci
 npm --prefix "$workspace/RobloxAIStudio2" ci
 
-cat >"$workspace/integration.env" <<EOF
-INTEGRATION_FRONTEND_DIR=$workspace/Frontend
-INTEGRATION_BACKEND_DIR=$workspace/RobloxAIStudio2
-INTEGRATION_FRONTEND_SHA=$frontend_sha
-INTEGRATION_BACKEND_SHA=$actual_backend_sha
-EOF
+{
+  printf 'INTEGRATION_FRONTEND_DIR=%q\n' "$workspace/Frontend"
+  printf 'INTEGRATION_BACKEND_DIR=%q\n' "$workspace/RobloxAIStudio2"
+  printf 'INTEGRATION_FRONTEND_SHA=%q\n' "$frontend_sha"
+  printf 'INTEGRATION_BACKEND_SHA=%q\n' "$actual_backend_sha"
+} >"$workspace/integration.env"
 
 INTEGRATION_FRONTEND_SHA="$frontend_sha" \
 INTEGRATION_BACKEND_SHA="$actual_backend_sha" \
