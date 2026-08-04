@@ -3,7 +3,10 @@ import { readFile, unlink, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const sourceUrl = new URL("./e2e-backend.mjs", import.meta.url);
-const generatedUrl = new URL("./.e2e-backend-rbac.generated.mjs", import.meta.url);
+const generatedUrl = new URL(
+  "./.e2e-backend-rbac.generated.mjs",
+  import.meta.url,
+);
 
 const replacements = [
   [
@@ -252,7 +255,9 @@ let generated = await readFile(sourceUrl, "utf8");
 for (const [name, legacy, secured] of replacements) {
   const occurrences = generated.split(legacy).length - 1;
   if (occurrences !== 1) {
-    throw new Error(`Expected exactly one legacy ${name} contract block, found ${occurrences}`);
+    throw new Error(
+      `Expected exactly one legacy ${name} contract block, found ${occurrences}`,
+    );
   }
   generated = generated.replace(legacy, secured);
 }

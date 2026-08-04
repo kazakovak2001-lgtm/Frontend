@@ -1,0 +1,90 @@
+name: INTEGRATION-1A Clean Clone Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-1a-clean-clone-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-clone-contract:
+    name: Clean Clone Two-Repository Contract
+    if: github.event_name != 'pull_request' || github.event.pull_request.number == 28
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      BACKEND_SHA: db79157912adf0d88a7b074f912a15abd87d863d
+    steps:
+      - name: Initialize clean workspace
+        run: |
+          printf 'WORKSPACE=%s\n' "$RUNNER_TEMP/integration-1a-clean-clone" >> "$GITHUB_ENV"
+
+      - name: Checkout orchestration source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FRONTEND_SHA }}
+          path: orchestration-source
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Bootstrap exact clean clones
+        env:
+          INTEGRATION_FRONTEND_REF: ${{ env.FRONTEND_SHA }}
+          INTEGRATION_BACKEND_SHA: ${{ env.BACKEND_SHA }}
+        run: bash orchestration-source/scripts/integration/bootstrap-two-repos.sh "$WORKSPACE"
+
+      - name: Start both repositories and run protected contract
+        run: |
+          source "$WORKSPACE/integration.env"
+          bash "$INTEGRATION_FRONTEND_DIR/scripts/integration/start-two-repos.sh"
+
+      - name: Capture diagnostics
+        if: always()
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone"
+          cp "$WORKSPACE/Frontend/artifacts/integration-1a/contract.json" \
+            "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/contract.json" 2>/dev/null || true
+          cp "$WORKSPACE/Frontend/artifacts/integration-1a/browser-runtime.json" \
+            "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/browser-runtime.json" 2>/dev/null || true
+          cp "$WORKSPACE/Frontend/artifacts/integration-1a/backend-health.json" \
+            "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/backend-health.json" 2>/dev/null || true
+          cp "$WORKSPACE/Frontend/artifacts/integration-1a/frontend-health.json" \
+            "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/frontend-health.json" 2>/dev/null || true
+          docker logs roblox-ai-studio-backend-integration-1a \
+            > "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/backend.log" 2>&1 || true
+          docker logs roblox-ai-studio-frontend-integration-1a \
+            > "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/frontend.log" 2>&1 || true
+          printf '%s\n' \
+            "frontendSha=$FRONTEND_SHA" \
+            "backendSha=$BACKEND_SHA" \
+            > "$GITHUB_WORKSPACE/artifacts/integration-1a-clean-clone/revisions.env"
+
+      - name: Stop integration containers
+        if: always()
+        run: |
+          if [[ -f "$WORKSPACE/integration.env" ]]; then
+            source "$WORKSPACE/integration.env"
+            bash "$INTEGRATION_FRONTEND_DIR/scripts/integration/stop-two-repos.sh"
+          else
+            docker rm --force \
+              roblox-ai-studio-frontend-integration-1a \
+              roblox-ai-studio-backend-integration-1a >/dev/null 2>&1 || true
+          fi
+
+      - name: Publish clean-clone evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-1a-clean-clone-${{ env.FRONTEND_SHA }}
+          path: artifacts/integration-1a-clean-clone
+          if-no-files-found: error
+          retention-days: 14
