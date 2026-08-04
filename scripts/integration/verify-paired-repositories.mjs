@@ -9,7 +9,8 @@ const manifestPath = resolve(
   "config/integration/paired-release.json",
 );
 const backendRoot = resolve(
-  process.env.INTEGRATION_BACKEND_DIR ?? resolve(frontendRoot, "../RobloxAIStudio2"),
+  process.env.INTEGRATION_BACKEND_DIR ??
+    resolve(frontendRoot, "../RobloxAIStudio2"),
 );
 
 function fail(message) {
@@ -51,10 +52,14 @@ assertSha(expectedBackendSha, "INTEGRATION_BACKEND_SHA");
 const actualFrontendSha = git(frontendRoot, "rev-parse", "HEAD");
 const actualBackendSha = git(backendRoot, "rev-parse", "HEAD");
 if (actualFrontendSha !== expectedFrontendSha) {
-  fail(`Frontend SHA mismatch: expected ${expectedFrontendSha}, received ${actualFrontendSha}`);
+  fail(
+    `Frontend SHA mismatch: expected ${expectedFrontendSha}, received ${actualFrontendSha}`,
+  );
 }
 if (actualBackendSha !== expectedBackendSha) {
-  fail(`Backend SHA mismatch: expected ${expectedBackendSha}, received ${actualBackendSha}`);
+  fail(
+    `Backend SHA mismatch: expected ${expectedBackendSha}, received ${actualBackendSha}`,
+  );
 }
 
 for (const [label, root] of [
@@ -72,7 +77,10 @@ for (const path of [
   manifest.contract.restClient,
   manifest.contract.realtimeClient,
 ]) {
-  await assertFile(resolve(frontendRoot, path), `Frontend runtime client ${path}`);
+  await assertFile(
+    resolve(frontendRoot, path),
+    `Frontend runtime client ${path}`,
+  );
 }
 
 console.log(
