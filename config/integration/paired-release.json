@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "delivery": "INTEGRATION-1A",
+  "frontend": {
+    "repository": "kazakovak2001-lgtm/Frontend",
+    "baselineSha": "03aa0615ea13e06b08cdce36b993fa94fb07966a"
+  },
+  "backend": {
+    "repository": "kazakovak2001-lgtm/RobloxAIStudio2",
+    "branch": "release/cutover-1e-candidate",
+    "baselineSha": "3a00c4709d147792a6e948e6d657ae06c01291ce"
+  },
+  "contract": {
+    "backendPaths": [
+      "server/src/contracts/integration/api.ts",
+      "server/src/contracts/integration/events.ts"
+    ],
+    "requiredTransports": ["https", "socket.io"],
+    "authentication": "credentialed-rbac"
+  }
+}
