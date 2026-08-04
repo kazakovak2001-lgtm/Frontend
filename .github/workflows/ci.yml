@@ -203,7 +203,7 @@ jobs:
     name: Production Backend Contract
     runs-on: ubuntu-latest
     env:
-      INT201_BACKEND_SHA: 3a00c4709d147792a6e948e6d657ae06c01291ce
+      INT201_BACKEND_SHA: de4c2d3af531155b9ecc88a497bb151d26544922
       INT201_FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       INT201_FRONTEND_ORIGIN: http://127.0.0.1:4173
       INT201_API_URL: http://127.0.0.1:5051/api
@@ -213,7 +213,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.INT201_FRONTEND_SHA }}
-      - name: Checkout exact backend baseline
+      - name: Checkout exact backend candidate
         uses: actions/checkout@v4
         with:
           repository: kazakovak2001-lgtm/RobloxAIStudio2
