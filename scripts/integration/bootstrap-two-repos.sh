@@ -21,12 +21,17 @@ fi
 
 mkdir -p "$workspace"
 workspace="$(cd "$workspace" && pwd)"
-git clone --branch "$frontend_ref" --single-branch "$frontend_repo" "$workspace/Frontend"
+git clone --no-checkout "$frontend_repo" "$workspace/Frontend"
+git -C "$workspace/Frontend" checkout --detach "$frontend_ref"
 git clone --no-checkout "$backend_repo" "$workspace/RobloxAIStudio2"
 git -C "$workspace/RobloxAIStudio2" checkout --detach "$backend_sha"
 
 frontend_sha="$(git -C "$workspace/Frontend" rev-parse HEAD)"
 actual_backend_sha="$(git -C "$workspace/RobloxAIStudio2" rev-parse HEAD)"
+if [[ "$frontend_ref" =~ ^[0-9a-fA-F]{40}$ ]] && [[ "$frontend_sha" != "$frontend_ref" ]]; then
+  echo "Frontend checkout mismatch: expected $frontend_ref, received $frontend_sha" >&2
+  exit 1
+fi
 [[ "$actual_backend_sha" == "$backend_sha" ]] || {
   echo "Backend checkout mismatch: expected $backend_sha, received $actual_backend_sha" >&2
   exit 1
