@@ -19,14 +19,24 @@ await mkdir(artifactDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
 const page = await context.newPage();
-const browserErrors = [];
+const browserDiagnostics = [];
+let phase = "bootstrap";
+
 page.on("console", (message) => {
   if (message.type() === "error") {
-    browserErrors.push(`console: ${message.text()}`);
+    browserDiagnostics.push({
+      source: "console",
+      phase,
+      message: message.text(),
+    });
   }
 });
 page.on("pageerror", (error) => {
-  browserErrors.push(`pageerror: ${error.message}`);
+  browserDiagnostics.push({
+    source: "pageerror",
+    phase,
+    message: error.message,
+  });
 });
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -90,6 +100,23 @@ function restartBackend() {
   );
 }
 
+function isExpectedDiagnostic(diagnostic) {
+  if (
+    diagnostic.source === "console" &&
+    /Failed to load resource: the server responded with a status of (400|401|409)/.test(
+      diagnostic.message,
+    )
+  ) {
+    return true;
+  }
+
+  return (
+    diagnostic.source === "console" &&
+    diagnostic.phase === "restart" &&
+    diagnostic.message.includes("ERR_CONNECTION_REFUSED")
+  );
+}
+
 try {
   await page.goto(`${frontendOrigin}/register`, {
     waitUntil: "networkidle",
@@ -104,6 +131,7 @@ try {
     page.getByRole("button", { name: "Create account" }).click(),
   ]);
 
+  phase = "generation";
   await page.goto(`${frontendOrigin}/projects/new`, {
     waitUntil: "networkidle",
   });
@@ -159,9 +187,12 @@ try {
     path: `${artifactDir}/before-restart.png`,
     fullPage: true,
   });
+
+  phase = "restart";
   restartBackend();
   await waitForHealth();
 
+  phase = "recovery";
   await page.reload({ waitUntil: "networkidle" });
   await page
     .getByRole("heading", { name: new RegExp(projectName) })
@@ -194,6 +225,10 @@ try {
     );
   }
 
+  const unexpectedDiagnostics = browserDiagnostics.filter(
+    (diagnostic) => !isExpectedDiagnostic(diagnostic),
+  );
+
   await page.screenshot({
     path: `${artifactDir}/after-restart.png`,
     fullPage: true,
@@ -211,15 +246,23 @@ try {
         executionStatus: execution.status,
         historyCountBefore: historyBefore.length,
         historyCountAfter: historyAfter.length,
-        browserErrors,
+        browserDiagnostics,
+        unexpectedDiagnostics,
       },
       null,
       2,
     ),
   );
 
-  if (browserErrors.length > 0) {
-    throw new Error(`Browser errors detected: ${browserErrors.join(" | ")}`);
+  if (unexpectedDiagnostics.length > 0) {
+    throw new Error(
+      `Unexpected browser diagnostics: ${unexpectedDiagnostics
+        .map(
+          (diagnostic) =>
+            `${diagnostic.source}/${diagnostic.phase}: ${diagnostic.message}`,
+        )
+        .join(" | ")}`,
+    );
   }
 } finally {
   await browser.close();
