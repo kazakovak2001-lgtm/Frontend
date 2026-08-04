@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 45
     env:
       FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      BACKEND_SHA: bd8d8035f7673a5150ed2bdab496a49b8ec2dc8d
+      BACKEND_SHA: db79157912adf0d88a7b074f912a15abd87d863d
     steps:
       - name: Initialize clean workspace
         run: |
