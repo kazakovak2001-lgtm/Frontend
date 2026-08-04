@@ -74,8 +74,9 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 
+mkdir -p "$INTEGRATION_FRONTEND_DIR/artifacts/integration-1a"
 npm --prefix "$INTEGRATION_FRONTEND_DIR" install --no-save --package-lock=false playwright@1.57.0
-npx --prefix "$INTEGRATION_FRONTEND_DIR" playwright install chromium
+npm --prefix "$INTEGRATION_FRONTEND_DIR" exec -- playwright install chromium
 E2E_API_URL="$api_url" \
 E2E_FRONTEND_ORIGIN="$frontend_origin" \
   node "$INTEGRATION_FRONTEND_DIR/scripts/integration/browser-runtime-smoke.mjs" \
