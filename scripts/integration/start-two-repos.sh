@@ -15,7 +15,11 @@ frontend_image="roblox-ai-studio-frontend:integration-1a"
 api_url="http://127.0.0.1:5051/api"
 socket_url="http://127.0.0.1:5051"
 frontend_origin="http://127.0.0.1:4173"
+evidence_dir="$INTEGRATION_FRONTEND_DIR/artifacts/integration-1a"
+backend_health="$evidence_dir/backend-health.json"
+frontend_health="$evidence_dir/frontend-health.json"
 
+mkdir -p "$evidence_dir"
 node "$INTEGRATION_FRONTEND_DIR/scripts/integration/verify-paired-repositories.mjs"
 
 docker rm --force "$frontend_container" "$backend_container" >/dev/null 2>&1 || true
@@ -36,8 +40,8 @@ docker run --detach \
   "$backend_image" >/dev/null
 
 for attempt in $(seq 1 30); do
-  if curl --fail --silent "$socket_url/health" >/tmp/integration-1a-backend-health.json; then
-    grep --quiet '"status":"healthy"' /tmp/integration-1a-backend-health.json
+  if curl --fail --silent "$socket_url/health" >"$backend_health" && \
+    grep --quiet '"status":"healthy"' "$backend_health"; then
     break
   fi
   if [[ "$attempt" -eq 30 ]]; then
@@ -63,8 +67,8 @@ docker run --detach \
   "$frontend_image" >/dev/null
 
 for attempt in $(seq 1 30); do
-  if curl --fail --silent "$frontend_origin/health" >/tmp/integration-1a-frontend-health.json; then
-    grep --quiet '"status":"healthy"' /tmp/integration-1a-frontend-health.json
+  if curl --fail --silent "$frontend_origin/health" >"$frontend_health" && \
+    grep --quiet '"status":"healthy"' "$frontend_health"; then
     break
   fi
   if [[ "$attempt" -eq 30 ]]; then
@@ -74,13 +78,12 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 
-mkdir -p "$INTEGRATION_FRONTEND_DIR/artifacts/integration-1a"
 npm --prefix "$INTEGRATION_FRONTEND_DIR" install --no-save --package-lock=false playwright@1.57.0
 npm --prefix "$INTEGRATION_FRONTEND_DIR" exec -- playwright install chromium
 E2E_API_URL="$api_url" \
 E2E_FRONTEND_ORIGIN="$frontend_origin" \
   node "$INTEGRATION_FRONTEND_DIR/scripts/integration/browser-runtime-smoke.mjs" \
-  >"$INTEGRATION_FRONTEND_DIR/artifacts/integration-1a/browser-runtime.json"
+  >"$evidence_dir/browser-runtime.json"
 
 E2E_API_URL="$api_url" \
 E2E_SOCKET_URL="$socket_url" \
@@ -90,7 +93,7 @@ E2E_FRONTEND_SHA="$INTEGRATION_FRONTEND_SHA" \
 E2E_BACKEND_NODE_ENV=production \
 E2E_STORAGE_PROVIDER=inmemory \
 E2E_FRONTEND_ORIGIN="$frontend_origin" \
-E2E_EVIDENCE_PATH="$INTEGRATION_FRONTEND_DIR/artifacts/integration-1a/contract.json" \
+E2E_EVIDENCE_PATH="$evidence_dir/contract.json" \
   npm --prefix "$INTEGRATION_FRONTEND_DIR" run test:e2e:integration
 
 printf 'Frontend: %s\nBackend: %s\n' "$frontend_origin" "$socket_url"
