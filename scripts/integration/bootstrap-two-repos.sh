@@ -3,7 +3,7 @@ set -euo pipefail
 
 workspace="${1:-$PWD/integration-workspace}"
 frontend_ref="${INTEGRATION_FRONTEND_REF:-agent/integration-1a-runtime-wiring}"
-backend_sha="${INTEGRATION_BACKEND_SHA:-de4c2d3af531155b9ecc88a497bb151d26544922}"
+backend_sha="${INTEGRATION_BACKEND_SHA:-bd8d8035f7673a5150ed2bdab496a49b8ec2dc8d}"
 frontend_repo="https://github.com/kazakovak2001-lgtm/Frontend.git"
 backend_repo="https://github.com/kazakovak2001-lgtm/RobloxAIStudio2.git"
 
@@ -48,10 +48,10 @@ npm --prefix "$workspace/Frontend" ci
 npm --prefix "$workspace/RobloxAIStudio2" ci
 
 {
-  printf 'INTEGRATION_FRONTEND_DIR=%q\n' "$workspace/Frontend"
-  printf 'INTEGRATION_BACKEND_DIR=%q\n' "$workspace/RobloxAIStudio2"
-  printf 'INTEGRATION_FRONTEND_SHA=%q\n' "$frontend_sha"
-  printf 'INTEGRATION_BACKEND_SHA=%q\n' "$actual_backend_sha"
+  printf 'export INTEGRATION_FRONTEND_DIR=%q\n' "$workspace/Frontend"
+  printf 'export INTEGRATION_BACKEND_DIR=%q\n' "$workspace/RobloxAIStudio2"
+  printf 'export INTEGRATION_FRONTEND_SHA=%q\n' "$frontend_sha"
+  printf 'export INTEGRATION_BACKEND_SHA=%q\n' "$actual_backend_sha"
 } >"$workspace/integration.env"
 
 INTEGRATION_FRONTEND_SHA="$frontend_sha" \
