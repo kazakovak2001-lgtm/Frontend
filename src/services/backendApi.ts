@@ -1,13 +1,11 @@
 import type { ChatMessage, Project, User } from "@/types";
+import { runtimeEndpoints } from "@/config/runtime";
 import {
   parseAutonomousSession,
   type AutonomousSession,
 } from "@/services/autonomousSession";
 
-const API_BASE_URL = (
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  "http://localhost:5000/api"
-).replace(/\/$/, "");
+const API_BASE_URL = runtimeEndpoints.apiBaseUrl;
 
 type JsonRecord = Record<string, unknown>;
 type ApiEnvelope<T> = {
