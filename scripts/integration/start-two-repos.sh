@@ -5,6 +5,8 @@ set -euo pipefail
 : "${INTEGRATION_BACKEND_DIR:?Source integration.env first}"
 : "${INTEGRATION_FRONTEND_SHA:?Source integration.env first}"
 : "${INTEGRATION_BACKEND_SHA:?Source integration.env first}"
+export INTEGRATION_FRONTEND_DIR INTEGRATION_BACKEND_DIR
+export INTEGRATION_FRONTEND_SHA INTEGRATION_BACKEND_SHA
 
 backend_container="roblox-ai-studio-backend-integration-1a"
 frontend_container="roblox-ai-studio-frontend-integration-1a"
