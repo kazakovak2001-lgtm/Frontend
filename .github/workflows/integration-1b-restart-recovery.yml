@@ -1,0 +1,153 @@
+name: INTEGRATION-1B Restart Recovery
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restart-recovery:
+    name: PostgreSQL Browser Restart Recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: roblox
+          POSTGRES_PASSWORD: roblox
+          POSTGRES_DB: roblox_ai_studio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U roblox -d roblox_ai_studio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      INT1B_BACKEND_SHA: db79157912adf0d88a7b074f912a15abd87d863d
+      INT1B_FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      INT1B_FRONTEND_ORIGIN: http://127.0.0.1:4173
+      INT1B_API_URL: http://127.0.0.1:5051/api
+      INT1B_BACKEND_IMAGE: roblox-ai-studio-backend:int-1b
+      INT1B_BACKEND_CONTAINER: roblox-ai-studio-backend-int-1b
+      INT1B_DATABASE_URL: postgresql://roblox:roblox@127.0.0.1:5432/roblox_ai_studio
+      INT1B_ARTIFACT_DIR: artifacts/int-1b-restart
+    steps:
+      - name: Checkout exact Frontend source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.INT1B_FRONTEND_SHA }}
+
+      - name: Checkout exact backend release
+        uses: actions/checkout@v4
+        with:
+          repository: kazakovak2001-lgtm/RobloxAIStudio2
+          ref: ${{ env.INT1B_BACKEND_SHA }}
+          path: backend-source
+
+      - name: Record exact source identities
+        run: |
+          test "$(git rev-parse HEAD)" = "$INT1B_FRONTEND_SHA"
+          test "$(git -C backend-source rev-parse HEAD)" = "$INT1B_BACKEND_SHA"
+          mkdir -p "$INT1B_ARTIFACT_DIR"
+          printf '%s\n' \
+            "contract=INTEGRATION-1B-restart-recovery" \
+            "frontendSha=$INT1B_FRONTEND_SHA" \
+            "backendSha=$INT1B_BACKEND_SHA" \
+            "storageProvider=postgres" \
+            "frontendOrigin=$INT1B_FRONTEND_ORIGIN" \
+            "apiUrl=$INT1B_API_URL" \
+            > "$INT1B_ARTIFACT_DIR/runtime.env"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Frontend dependencies and browser runtime
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.57.0
+          npx playwright install --with-deps chromium
+
+      - name: Build exact production backend image
+        run: |
+          docker build \
+            --file backend-source/Dockerfile.backend \
+            --label "org.opencontainers.image.revision=$INT1B_BACKEND_SHA" \
+            --tag "$INT1B_BACKEND_IMAGE" \
+            backend-source
+
+      - name: Start PostgreSQL-backed production backend
+        run: |
+          docker run --detach \
+            --name "$INT1B_BACKEND_CONTAINER" \
+            --network host \
+            --env NODE_ENV=production \
+            --env PORT=5051 \
+            --env STORAGE_PROVIDER=postgres \
+            --env DATABASE_URL="$INT1B_DATABASE_URL" \
+            --env FRONTEND_URL="$INT1B_FRONTEND_ORIGIN" \
+            "$INT1B_BACKEND_IMAGE"
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:5051/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs "$INT1B_BACKEND_CONTAINER"
+          exit 1
+
+      - name: Build exact production Frontend image
+        run: |
+          docker build \
+            --build-arg VITE_API_URL="$INT1B_API_URL" \
+            --build-arg VITE_SOCKET_URL=http://127.0.0.1:5051 \
+            --label "org.opencontainers.image.revision=$INT1B_FRONTEND_SHA" \
+            --tag roblox-ai-studio-frontend:int-1b \
+            .
+
+      - name: Start production Frontend
+        run: |
+          docker run --detach \
+            --name roblox-ai-studio-frontend-int-1b \
+            --network host \
+            --env PORT=4173 \
+            --env HOST=0.0.0.0 \
+            --env PUBLIC_ORIGIN="$INT1B_FRONTEND_ORIGIN" \
+            roblox-ai-studio-frontend:int-1b
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:4173/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs roblox-ai-studio-frontend-int-1b
+          exit 1
+
+      - name: Verify browser lifecycle across backend restart
+        run: node scripts/integration/restart-recovery-browser.mjs
+
+      - name: Capture container diagnostics
+        if: always()
+        run: |
+          docker logs "$INT1B_BACKEND_CONTAINER" > "$INT1B_ARTIFACT_DIR/backend.log" 2>&1 || true
+          docker logs roblox-ai-studio-frontend-int-1b > "$INT1B_ARTIFACT_DIR/frontend.log" 2>&1 || true
+
+      - name: Publish restart recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-1b-restart-recovery-${{ env.INT1B_FRONTEND_SHA }}
+          path: artifacts/int-1b-restart
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop production pair
+        if: always()
+        run: |
+          docker rm --force "$INT1B_BACKEND_CONTAINER" || true
+          docker rm --force roblox-ai-studio-frontend-int-1b || true
