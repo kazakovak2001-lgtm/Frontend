@@ -2,8 +2,7 @@
 set -euo pipefail
 
 workspace="${1:-$PWD/integration-workspace}"
-frontend_ref="${INTEGRATION_FRONTEND_REF:-agent/integration-1a-runtime-wiring}"
-backend_sha="${INTEGRATION_BACKEND_SHA:-db79157912adf0d88a7b074f912a15abd87d863d}"
+frontend_ref="${INTEGRATION_FRONTEND_REF:-main}"
 frontend_repo="https://github.com/kazakovak2001-lgtm/Frontend.git"
 backend_repo="https://github.com/kazakovak2001-lgtm/RobloxAIStudio2.git"
 
@@ -13,6 +12,11 @@ for command in git node npm docker; do
     exit 1
   }
 done
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+frontend_root="$(cd "$script_dir/../.." && pwd)"
+manifest_backend_sha="$(node -e "const fs=require('node:fs'); const pair=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(pair.backend.candidateSha)" "$frontend_root/config/integration/paired-release.json")"
+backend_sha="${INTEGRATION_BACKEND_SHA:-$manifest_backend_sha}"
 
 if [[ -e "$workspace" ]] && [[ -n "$(find "$workspace" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
   echo "Workspace must be empty: $workspace" >&2

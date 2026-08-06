@@ -15,12 +15,10 @@ concurrency:
 jobs:
   clean-clone-contract:
     name: Clean Clone Two-Repository Contract
-    if: github.event_name != 'pull_request' || github.event.pull_request.number == 28
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      BACKEND_SHA: db79157912adf0d88a7b074f912a15abd87d863d
     steps:
       - name: Initialize clean workspace
         run: |
@@ -32,6 +30,15 @@ jobs:
           ref: ${{ env.FRONTEND_SHA }}
           path: orchestration-source
 
+      - name: Resolve exact backend release from the paired manifest
+        id: pair
+        shell: bash
+        run: |
+          backend_sha="$(node -e "const fs=require('node:fs'); const pair=JSON.parse(fs.readFileSync('orchestration-source/config/integration/paired-release.json','utf8')); process.stdout.write(pair.backend.candidateSha)")"
+          [[ "$backend_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "backend_sha=$backend_sha" >> "$GITHUB_OUTPUT"
+          echo "BACKEND_SHA=$backend_sha" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -39,7 +46,7 @@ jobs:
       - name: Bootstrap exact clean clones
         env:
           INTEGRATION_FRONTEND_REF: ${{ env.FRONTEND_SHA }}
-          INTEGRATION_BACKEND_SHA: ${{ env.BACKEND_SHA }}
+          INTEGRATION_BACKEND_SHA: ${{ steps.pair.outputs.backend_sha }}
         run: bash orchestration-source/scripts/integration/bootstrap-two-repos.sh "$WORKSPACE"
 
       - name: Start both repositories and run protected contract

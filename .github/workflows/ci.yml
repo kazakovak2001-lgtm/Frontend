@@ -203,7 +203,6 @@ jobs:
     name: Production Paired Contract
     runs-on: ubuntu-latest
     env:
-      INT201_BACKEND_SHA: db79157912adf0d88a7b074f912a15abd87d863d
       INT201_FRONTEND_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       INT201_FRONTEND_ORIGIN: http://127.0.0.1:4173
       INT201_API_URL: http://127.0.0.1:5051/api
@@ -213,11 +212,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.INT201_FRONTEND_SHA }}
+      - name: Resolve exact backend release from the paired manifest
+        id: pair
+        shell: bash
+        run: |
+          backend_sha="$(node -e "const fs=require('node:fs'); const pair=JSON.parse(fs.readFileSync('config/integration/paired-release.json','utf8')); process.stdout.write(pair.backend.candidateSha)")"
+          [[ "$backend_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "backend_sha=$backend_sha" >> "$GITHUB_OUTPUT"
+          echo "INT201_BACKEND_SHA=$backend_sha" >> "$GITHUB_ENV"
       - name: Checkout exact backend candidate
         uses: actions/checkout@v4
         with:
           repository: kazakovak2001-lgtm/RobloxAIStudio2
-          ref: ${{ env.INT201_BACKEND_SHA }}
+          ref: ${{ steps.pair.outputs.backend_sha }}
           path: backend-source
       - name: Verify and record exact contract sources
         run: |
