@@ -47,8 +47,32 @@ function jsonResponse(data: unknown): Response {
 test("Studio sync API sends project scope on every canonical endpoint", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = async (input, init) => {
-    calls.push({ url: String(input), init });
-    return jsonResponse({});
+    const url = String(input);
+    calls.push({ url, init });
+    if (url.includes("/studio/sync/status")) {
+      return jsonResponse({
+        lastSyncTimestamp: 0,
+        pendingChanges: 0,
+        conflictCount: 0,
+        currentVersion: "version-1",
+        projectId: "project/a",
+      });
+    }
+    if (url.endsWith("/studio/sync/project")) {
+      return jsonResponse({
+        projectId: "project/a",
+        version: "version-1",
+        artifacts: [],
+        generatedAt: 0,
+        artifactCount: 0,
+      });
+    }
+    return jsonResponse({
+      artifacts: [],
+      missing: ["artifact-1"],
+      totalSize: 0,
+      payloadExceeded: false,
+    });
   };
 
   const { backendApi } = await loadStudioApi();
@@ -67,4 +91,22 @@ test("Studio sync API sends project scope on every canonical endpoint", async ()
   });
   assert.equal(calls[1].init?.method, "POST");
   assert.equal(calls[2].init?.method, "POST");
+});
+
+test("Studio sync API rejects malformed response contracts", async () => {
+  globalThis.fetch = async () => jsonResponse({});
+  const { backendApi } = await loadStudioApi();
+
+  await assert.rejects(
+    backendApi.workspace.studio.syncStatus("project-a"),
+    /Studio sync timestamp/,
+  );
+  await assert.rejects(
+    backendApi.workspace.studio.projectSnapshot("project-a"),
+    /Studio snapshot artifacts/,
+  );
+  await assert.rejects(
+    backendApi.workspace.studio.artifacts("project-a", ["artifact-a"]),
+    /Studio transferred artifacts/,
+  );
 });

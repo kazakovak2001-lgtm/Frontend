@@ -13,7 +13,6 @@ import {
   type WorkspaceStudioVerificationStatus,
 } from "@/services/workspaceStudioStatus";
 import {
-  parseStudioSyncStatus,
   unavailableStudioSyncStatus,
   type StudioSyncStatus,
 } from "@/services/workspaceStudioSync";
@@ -115,9 +114,7 @@ export async function loadWorkspaceReadModel(
       ),
       loadOptional(
         "Studio sync contract",
-        backendApi.workspace.studio
-          .syncStatus(projectId)
-          .then(parseStudioSyncStatus),
+        backendApi.workspace.studio.syncStatus(projectId),
         unavailableStudioSyncStatus(projectId),
         degradedSources,
       ),

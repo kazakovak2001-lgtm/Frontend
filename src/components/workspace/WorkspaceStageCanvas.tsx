@@ -452,7 +452,7 @@ export function WorkspaceStageCanvas({
                 <DataField
                   label="Contract sync"
                   value={
-                    studioSync?.lastSyncTimestamp
+                    typeof studioSync?.lastSyncTimestamp === "number"
                       ? new Date(studioSync.lastSyncTimestamp).toLocaleString()
                       : "Never"
                   }
