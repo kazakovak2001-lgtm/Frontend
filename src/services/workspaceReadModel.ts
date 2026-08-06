@@ -12,6 +12,10 @@ import {
   type WorkspaceStudioStatus,
   type WorkspaceStudioVerificationStatus,
 } from "@/services/workspaceStudioStatus";
+import {
+  unavailableStudioSyncStatus,
+  type StudioSyncStatus,
+} from "@/services/workspaceStudioSync";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -73,6 +77,7 @@ export interface WorkspaceReadModel {
   history: GenerationRecord[];
   conversations: ConversationSummary[];
   studio: WorkspaceStudioStatus;
+  studioSync: StudioSyncStatus;
   agents: RealtimeAgent[];
   latestExecution?: WorkspaceExecution;
   readiness: WorkspaceReadiness;
@@ -84,35 +89,42 @@ export async function loadWorkspaceReadModel(
 ): Promise<WorkspaceReadModel> {
   const degradedSources: string[] = [];
 
-  const [manifest, history, conversations, studio, agents] = await Promise.all([
-    loadManifest(projectId),
-    loadOptional(
-      "generation history",
-      backendApi.projects.history(projectId),
-      [],
-      degradedSources,
-    ),
-    loadOptional(
-      "conversation history",
-      backendApi.workspace.chat.history(projectId),
-      [],
-      degradedSources,
-    ),
-    loadOptional(
-      "Studio status",
-      backendApi.workspace.studio
-        .status(projectId)
-        .then(parseWorkspaceStudioStatus),
-      disconnectedWorkspaceStudioStatus(),
-      degradedSources,
-    ),
-    loadOptional(
-      "agent registry",
-      backendApi.workspace.agents(),
-      [],
-      degradedSources,
-    ),
-  ]);
+  const [manifest, history, conversations, studio, studioSync, agents] =
+    await Promise.all([
+      loadManifest(projectId),
+      loadOptional(
+        "generation history",
+        backendApi.projects.history(projectId),
+        [],
+        degradedSources,
+      ),
+      loadOptional(
+        "conversation history",
+        backendApi.workspace.chat.history(projectId),
+        [],
+        degradedSources,
+      ),
+      loadOptional(
+        "Studio status",
+        backendApi.workspace.studio
+          .status(projectId)
+          .then(parseWorkspaceStudioStatus),
+        disconnectedWorkspaceStudioStatus(),
+        degradedSources,
+      ),
+      loadOptional(
+        "Studio sync contract",
+        backendApi.workspace.studio.syncStatus(projectId),
+        unavailableStudioSyncStatus(projectId),
+        degradedSources,
+      ),
+      loadOptional(
+        "agent registry",
+        backendApi.workspace.agents(),
+        [],
+        degradedSources,
+      ),
+    ]);
 
   const latestExecution = manifest
     ? [...manifest.executions].sort(
@@ -142,6 +154,7 @@ export async function loadWorkspaceReadModel(
     history,
     conversations,
     studio,
+    studioSync,
     agents,
     latestExecution,
     readiness: {
