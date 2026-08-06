@@ -4,6 +4,11 @@ import {
   parseAutonomousSession,
   type AutonomousSession,
 } from "@/services/autonomousSession";
+import type {
+  ArtifactTransferResult,
+  ProjectSnapshot,
+  StudioSyncStatus,
+} from "@/services/workspaceStudioSync";
 
 const API_BASE_URL = runtimeEndpoints.apiBaseUrl;
 
@@ -492,6 +497,20 @@ export const backendApi = {
         request<JsonRecord>(
           `/projects/${encodeURIComponent(projectId)}/studio/sync`,
           json("POST", { studioId }),
+        ),
+      syncStatus: (projectId: string) =>
+        request<StudioSyncStatus>(
+          `/studio/sync/status?projectId=${encodeURIComponent(projectId)}`,
+        ),
+      projectSnapshot: (projectId: string) =>
+        request<ProjectSnapshot>(
+          "/studio/sync/project",
+          json("POST", { projectId }),
+        ),
+      artifacts: (projectId: string, artifactIds: string[]) =>
+        request<ArtifactTransferResult>(
+          "/studio/sync/artifacts",
+          json("POST", { projectId, artifactIds }),
         ),
     },
     controller: {

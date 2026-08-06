@@ -71,6 +71,7 @@ export function WorkspaceStageCanvas({
   const readiness = workspace?.readiness;
   const history = workspace?.history ?? [];
   const studio = workspace?.studio;
+  const studioSync = workspace?.studioSync;
   const studioVerificationIsStale =
     studio?.verificationStatus === "verified" &&
     readiness?.studioArtifactVerified === false;
@@ -434,6 +435,41 @@ export function WorkspaceStageCanvas({
                     ? describeWorkspaceStudioVerification(studio)
                     : "Studio verification status is unavailable."}
               </p>
+            </Card>
+
+            <Card className="space-y-3 border-sky-500/30 bg-sky-500/5 p-4">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-sky-400" />
+                <p className="text-sm font-medium text-foreground">
+                  Project sync contract
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Project-scoped snapshot state reported by the backend. This is
+                separate from the live plugin connection and import receipt.
+              </p>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <DataField
+                  label="Contract sync"
+                  value={
+                    studioSync?.lastSyncTimestamp
+                      ? new Date(studioSync.lastSyncTimestamp).toLocaleString()
+                      : "Never"
+                  }
+                />
+                <DataField
+                  label="Snapshot version"
+                  value={studioSync?.currentVersion ?? "unavailable"}
+                />
+                <DataField
+                  label="Pending contract changes"
+                  value={String(studioSync?.pendingChanges ?? 0)}
+                />
+                <DataField
+                  label="Sync conflicts"
+                  value={String(studioSync?.conflictCount ?? 0)}
+                />
+              </dl>
             </Card>
 
             <div className="flex flex-wrap gap-2">
