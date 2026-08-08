@@ -8,7 +8,7 @@ All browser calls pass through `src/services/backendApi.ts`. It normalizes API e
 
 ## Current exact runtime pair
 
-- Frontend runtime baseline: `e89f93d88a3c181b65769641e1a586c86827a6c5`
+- Frontend runtime baseline: `06203ad0c296892d02467b2b566409fa10201cf6`
 - Backend runtime baseline: `f3b89c9048884528eb8baa4d5a19e406cc1c6315`
 - Single pin authority: `config/integration/paired-release.json`
 
