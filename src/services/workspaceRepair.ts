@@ -6,10 +6,7 @@ import {
 type JsonRecord = Record<string, unknown>;
 
 export type RepairSessionStatus =
-  | "running"
-  | "completed"
-  | "stopped"
-  | "timeout";
+  "running" | "completed" | "stopped" | "timeout";
 
 export interface RepairIterationRecord {
   iteration: number;
@@ -100,7 +97,9 @@ export function parseRepairIterationRecord(
   };
 }
 
-export function parseRepairDeliveryRecord(value: unknown): RepairDeliveryRecord {
+export function parseRepairDeliveryRecord(
+  value: unknown,
+): RepairDeliveryRecord {
   const record = asRecord(value, "Repair delivery record");
   return {
     timestamp: asNonNegativeNumber(record.timestamp, "Delivery timestamp"),
@@ -171,10 +170,7 @@ export function parseRepairSyncResult(value: unknown): RepairSyncResult {
       "Repair sync items synced",
     ),
     totalSize: asNonNegativeInteger(record.totalSize, "Repair sync total size"),
-    durationMs: asNonNegativeInteger(
-      record.durationMs,
-      "Repair sync duration",
-    ),
+    durationMs: asNonNegativeInteger(record.durationMs, "Repair sync duration"),
     error: asOptionalString(record.error, "Repair sync error"),
   };
 }

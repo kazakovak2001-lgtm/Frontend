@@ -143,7 +143,9 @@ export function WorkspaceRepairPanel({
           variant="outline"
           disabled={Boolean(mutation) || !canDeliver}
           onClick={() =>
-            void mutate("deliver", () => backendApi.workspace.repair.deliver(project.id))
+            void mutate("deliver", () =>
+              backendApi.workspace.repair.deliver(project.id),
+            )
           }
         >
           <UploadCloud className="mr-1 h-3.5 w-3.5" />
@@ -196,7 +198,9 @@ export function WorkspaceRepairPanel({
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium">
                     {record.parentExecutionId}
-                    {record.newExecutionId ? ` → ${record.newExecutionId}` : " (no change)"}
+                    {record.newExecutionId
+                      ? ` → ${record.newExecutionId}`
+                      : " (no change)"}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
                     {new Date(record.timestamp).toLocaleString()} · score{" "}
@@ -205,7 +209,11 @@ export function WorkspaceRepairPanel({
                 </div>
                 <Badge
                   variant="outline"
-                  className={record.newExecutionId ? "text-success" : "text-muted-foreground"}
+                  className={
+                    record.newExecutionId
+                      ? "text-success"
+                      : "text-muted-foreground"
+                  }
                 >
                   {record.newExecutionId ? "repaired" : "no change"}
                 </Badge>
@@ -238,7 +246,9 @@ export function WorkspaceRepairPanel({
                 </div>
                 <Badge
                   variant="outline"
-                  className={delivery.success ? "text-success" : "text-destructive"}
+                  className={
+                    delivery.success ? "text-success" : "text-destructive"
+                  }
                 >
                   {delivery.success ? "delivered" : "failed"}
                 </Badge>

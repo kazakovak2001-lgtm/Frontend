@@ -517,8 +517,8 @@ export function WorkspaceStageCanvas({
             <h2 className="font-semibold">Repair</h2>
             <p className="text-xs text-muted-foreground">
               Run artifact-applying repair against the latest generation
-              execution, redeliver the result to Studio, or roll back to a
-              prior execution.
+              execution, redeliver the result to Studio, or roll back to a prior
+              execution.
             </p>
           </div>
           <WorkspaceRepairPanel
