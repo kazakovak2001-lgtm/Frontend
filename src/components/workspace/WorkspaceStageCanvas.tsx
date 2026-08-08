@@ -1,4 +1,4 @@
-import { Bot, Download, History, RefreshCw, Settings2 } from "lucide-react";
+import { Bot, Download, History, Plug, RefreshCw, Settings2 } from "lucide-react";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { CoverGeneratorDialog } from "@/components/projects/CoverGeneratorDialog";
@@ -18,6 +18,10 @@ import {
   type WorkspaceStudioConnectionStatus,
   type WorkspaceStudioVerificationStatus,
 } from "@/services/workspaceStudioStatus";
+import {
+  studioBridgeFieldMarker,
+  type StudioBridgeFieldKey,
+} from "@/services/workspaceStudioBridgeFields";
 import type { Agent, LogEntry, Project } from "@/types";
 import { formatDate } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -383,10 +387,12 @@ export function WorkspaceStageCanvas({
 
             <dl className="grid gap-3 text-sm">
               <DataField
+                fieldKey="bridgeVersion"
                 label="Bridge version"
                 value={studio?.bridgeVersion ?? "unknown"}
               />
               <DataField
+                fieldKey="lastSync"
                 label="Last sync"
                 value={
                   studio?.lastSyncAt
@@ -395,14 +401,17 @@ export function WorkspaceStageCanvas({
                 }
               />
               <DataField
+                fieldKey="pendingChanges"
                 label="Pending changes"
                 value={String(studio?.pendingChanges ?? 0)}
               />
               <DataField
+                fieldKey="verifiedExecution"
                 label="Verified execution"
                 value={studio?.verifiedExecutionId ?? "Not verified"}
               />
               <DataField
+                fieldKey="verifiedArtifacts"
                 label="Verified artifacts"
                 value={
                   studio?.verifiedArtifactCount === undefined
@@ -450,6 +459,7 @@ export function WorkspaceStageCanvas({
               </p>
               <dl className="grid gap-3 text-sm sm:grid-cols-2">
                 <DataField
+                  fieldKey="contractSync"
                   label="Contract sync"
                   value={
                     typeof studioSync?.lastSyncTimestamp === "number"
@@ -458,14 +468,17 @@ export function WorkspaceStageCanvas({
                   }
                 />
                 <DataField
+                  fieldKey="snapshotVersion"
                   label="Snapshot version"
                   value={studioSync?.currentVersion ?? "unavailable"}
                 />
                 <DataField
+                  fieldKey="pendingContractChanges"
                   label="Pending contract changes"
                   value={String(studioSync?.pendingChanges ?? 0)}
                 />
                 <DataField
+                  fieldKey="syncConflicts"
                   label="Sync conflicts"
                   value={String(studioSync?.conflictCount ?? 0)}
                 />
@@ -732,10 +745,32 @@ function ToolSection({
   );
 }
 
-function DataField({ label, value }: { label: string; value: string }) {
+function DataField({
+  label,
+  value,
+  fieldKey,
+}: {
+  label: string;
+  value: string;
+  fieldKey?: StudioBridgeFieldKey;
+}) {
+  const marker = fieldKey ? studioBridgeFieldMarker(fieldKey) : null;
   return (
     <div className="rounded-xl border border-border/60 bg-background/40 p-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+        {marker === "sync" ? (
+          <RefreshCw
+            className="h-3 w-3 shrink-0 text-sky-400"
+            aria-label="Studio sync message"
+          />
+        ) : marker === "connection" ? (
+          <Plug
+            className="h-3 w-3 shrink-0 text-muted-foreground/70"
+            aria-label="Studio connection message"
+          />
+        ) : null}
+        <span>{label}</span>
+      </dt>
       <dd className="mt-1 truncate font-medium">{value}</dd>
     </div>
   );
