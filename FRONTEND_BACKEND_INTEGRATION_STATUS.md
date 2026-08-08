@@ -9,7 +9,7 @@ All browser calls pass through `src/services/backendApi.ts`. It normalizes API e
 ## Current exact runtime pair
 
 - Frontend runtime baseline: `e89f93d88a3c181b65769641e1a586c86827a6c5`
-- Backend runtime baseline: `23e23c1c6733f0b3c52ff4f90fc6123b74c0cf72`
+- Backend runtime baseline: `f3b89c9048884528eb8baa4d5a19e406cc1c6315`
 - Single pin authority: `config/integration/paired-release.json`
 
 Production, clean-clone, and PostgreSQL restart workflows resolve the backend
@@ -112,7 +112,7 @@ browser QA are also required before merge.
 
 `Production Paired Contract` is a required Frontend CI job. It checks out the
 exact backend baseline declared by `config/integration/paired-release.json`,
-currently `23e23c1c6733f0b3c52ff4f90fc6123b74c0cf72`, builds its backend-only image,
+currently `f3b89c9048884528eb8baa4d5a19e406cc1c6315`, builds its backend-only image,
 starts it with `NODE_ENV=production` and runs all 40 integration checks from the
 exact Frontend pull-request head or push commit. `Merge Gate` depends on this
 job, so an authentication, ownership-isolation, realtime, generation, module or
