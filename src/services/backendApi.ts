@@ -9,6 +9,10 @@ import {
   parseProjectSnapshot,
   parseStudioSyncStatus,
 } from "@/services/workspaceStudioSync";
+import {
+  buildProjectQualityInput,
+  selectQualityArtifactIds,
+} from "@/services/projectQualityArtifacts";
 
 const API_BASE_URL = runtimeEndpoints.apiBaseUrl;
 
@@ -284,33 +288,17 @@ function projectDomainGenre(project: Project) {
     : "adventure";
 }
 
-function projectQualityInput(project: Project) {
-  return {
-    projectId: project.id,
-    scripts: [
-      {
-        name: "Main",
-        type: "server",
-        path: "ServerScriptService/Main.server.lua",
-        content:
-          "-- Workspace validation fixture\nlocal Players = game:GetService('Players')\nreturn Players",
-        dependencies: [],
-      },
-    ],
-    assets: [
-      {
-        name: "Spawn",
-        type: "model",
-        targetService: "Workspace",
-        placeholder: false,
-      },
-    ],
-    dependencyGraph: {
-      nodes: ["Main"],
-      edges: [],
-      circular: [],
-    },
-  };
+async function projectQualityInput(project: Project) {
+  const snapshot = await request<unknown>(
+    "/studio/sync/project",
+    json("POST", { projectId: project.id }),
+  ).then(parseProjectSnapshot);
+  const artifactIds = selectQualityArtifactIds(snapshot);
+  const transfer = await request<unknown>(
+    "/studio/sync/artifacts",
+    json("POST", { projectId: project.id, artifactIds }),
+  ).then(parseArtifactTransferResult);
+  return buildProjectQualityInput(project.id, transfer);
 }
 
 function mapAgent(raw: JsonRecord, index: number): RealtimeAgent {
@@ -672,19 +660,20 @@ export const backendApi = {
       const history = await request<JsonRecord>("/evaluation/history");
       return { run, history };
     },
-    playtest: (project: Project) =>
-      request<JsonRecord>(
-        "/playtest/run",
-        json("POST", projectQualityInput(project)),
-      ),
-    repair: (project: Project) =>
-      request<JsonRecord>(
+    playtest: async (project: Project) => {
+      const input = await projectQualityInput(project);
+      return request<JsonRecord>("/playtest/run", json("POST", input));
+    },
+    repair: async (project: Project) => {
+      const input = await projectQualityInput(project);
+      return request<JsonRecord>(
         "/repair/run",
         json("POST", {
-          ...projectQualityInput(project),
+          ...input,
           config: { maxIterations: 2 },
         }),
-      ),
+      );
+    },
     collaboration: (project: Project) =>
       request<JsonRecord>(
         "/agents/run",
