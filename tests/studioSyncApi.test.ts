@@ -29,7 +29,6 @@ async function loadStudioApi() {
     backendApi: {
       workspace: {
         playtest(project: Project): Promise<unknown>;
-        repair(project: Project): Promise<unknown>;
         studio: {
           syncStatus(projectId: string): Promise<unknown>;
           projectSnapshot(projectId: string): Promise<unknown>;
@@ -114,7 +113,7 @@ test("Studio sync API rejects malformed response contracts", async () => {
   );
 });
 
-test("playtest and repair submit the latest generated Lua artifact", async () => {
+test("playtest submits the latest generated Lua artifact", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const serverContent =
     'local progress = Instance.new("RemoteEvent")\nprogress:FireClient(player, 1)';
@@ -195,7 +194,6 @@ test("playtest and repair submit the latest generated Lua artifact", async () =>
   };
   const { backendApi } = await loadStudioApi();
   await backendApi.workspace.playtest(project);
-  await backendApi.workspace.repair(project);
 
   const snapshots = calls.filter(({ url }) =>
     url.endsWith("/studio/sync/project"),
@@ -203,31 +201,27 @@ test("playtest and repair submit the latest generated Lua artifact", async () =>
   const transfers = calls.filter(({ url }) =>
     url.endsWith("/studio/sync/artifacts"),
   );
-  assert.equal(snapshots.length, 2);
-  assert.equal(transfers.length, 2);
+  assert.equal(snapshots.length, 1);
+  assert.equal(transfers.length, 1);
   assert.deepEqual(JSON.parse(String(transfers[0].init?.body)), {
     projectId: project.id,
     artifactIds: ["artifact-lua"],
   });
 
   const playtestCall = calls.find(({ url }) => url.endsWith("/playtest/run"));
-  const repairCall = calls.find(({ url }) => url.endsWith("/repair/run"));
   assert.ok(playtestCall);
-  assert.ok(repairCall);
   const playtestBody = JSON.parse(String(playtestCall.init?.body));
-  const repairBody = JSON.parse(String(repairCall.init?.body));
 
-  for (const body of [playtestBody, repairBody]) {
-    assert.equal(body.projectId, project.id);
-    assert.equal(body.scripts.length, 2);
-    assert.equal(body.scripts[0].type, "ServerScript");
-    assert.equal(body.scripts[0].content, serverContent);
-    assert.equal(body.scripts[1].type, "LocalScript");
-    assert.equal(body.scripts[1].content, clientContent);
-    assert.equal(
-      body.scripts.some((script: { name: string }) => script.name === "Main"),
-      false,
-    );
-  }
-  assert.deepEqual(repairBody.config, { maxIterations: 2 });
+  assert.equal(playtestBody.projectId, project.id);
+  assert.equal(playtestBody.scripts.length, 2);
+  assert.equal(playtestBody.scripts[0].type, "ServerScript");
+  assert.equal(playtestBody.scripts[0].content, serverContent);
+  assert.equal(playtestBody.scripts[1].type, "LocalScript");
+  assert.equal(playtestBody.scripts[1].content, clientContent);
+  assert.equal(
+    playtestBody.scripts.some(
+      (script: { name: string }) => script.name === "Main",
+    ),
+    false,
+  );
 });

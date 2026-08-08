@@ -470,9 +470,9 @@ export function WorkspaceModules({
     {
       key: "quality",
       icon: <FlaskConical className="h-5 w-5" />,
-      title: "Playtest, Repair & Evaluation",
+      title: "Playtest & Evaluation",
       description:
-        "Validates generated structures, proposes repairs and runs agent regression evaluation.",
+        "Validates generated structures and runs agent regression evaluation. Repair, redelivery and rollback now live in the Integrate stage's Repair panel.",
       actions: (
         <>
           <Button
@@ -484,16 +484,6 @@ export function WorkspaceModules({
             }
           >
             Run playtest
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={states.quality.loading}
-            onClick={() =>
-              void run("quality", () => backendApi.workspace.repair(project))
-            }
-          >
-            Run repair
           </Button>
           <Button
             size="sm"

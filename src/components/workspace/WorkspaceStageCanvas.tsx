@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WorkspaceModules } from "@/components/workspace/WorkspaceModules";
+import { WorkspaceRepairPanel } from "@/components/workspace/WorkspaceRepairPanel";
 import { WorkspaceRunSummary } from "@/components/workspace/WorkspaceRunSummary";
 import type { WorkspaceStage } from "@/components/workspace/WorkspaceWorkflowRail";
 import type { WorkspaceReadModel } from "@/services/workspaceReadModel";
@@ -510,6 +511,22 @@ export function WorkspaceStageCanvas({
             </div>
           </Card>
         </div>
+
+        <Card className="space-y-4 border-border/60 bg-card/50 p-5">
+          <div>
+            <h2 className="font-semibold">Repair</h2>
+            <p className="text-xs text-muted-foreground">
+              Run artifact-applying repair against the latest generation
+              execution, redeliver the result to Studio, or roll back to a prior
+              execution.
+            </p>
+          </div>
+          <WorkspaceRepairPanel
+            project={project}
+            latestExecutionId={workspace?.latestExecution?.id}
+            studio={studio}
+          />
+        </Card>
 
         <ToolSection
           title="Version checkpoints"

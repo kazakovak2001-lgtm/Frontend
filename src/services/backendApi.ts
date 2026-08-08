@@ -13,6 +13,11 @@ import {
   buildProjectQualityInput,
   selectQualityArtifactIds,
 } from "@/services/projectQualityArtifacts";
+import {
+  parseRepairDeliverResult,
+  parseRepairDeliveriesEnvelope,
+  parseRepairSession,
+} from "@/services/workspaceRepair";
 
 const API_BASE_URL = runtimeEndpoints.apiBaseUrl;
 
@@ -664,15 +669,32 @@ export const backendApi = {
       const input = await projectQualityInput(project);
       return request<JsonRecord>("/playtest/run", json("POST", input));
     },
-    repair: async (project: Project) => {
-      const input = await projectQualityInput(project);
-      return request<JsonRecord>(
-        "/repair/run",
-        json("POST", {
-          ...input,
-          config: { maxIterations: 2 },
-        }),
-      );
+    repair: {
+      run: (
+        projectId: string,
+        executionId: string,
+        config?: { maxIterations?: number },
+      ) =>
+        request<unknown>(
+          "/repair/run",
+          json("POST", { projectId, executionId, config }),
+        ).then(parseRepairSession),
+      get: (projectId: string) =>
+        request<unknown>(`/repair/${encodeURIComponent(projectId)}`).then(
+          parseRepairSession,
+        ),
+      deliver: (
+        projectId: string,
+        options?: { studioId?: string; executionId?: string },
+      ) =>
+        request<unknown>(
+          `/repair/${encodeURIComponent(projectId)}/deliver`,
+          json("POST", options ?? {}),
+        ).then(parseRepairDeliverResult),
+      deliveries: (projectId: string) =>
+        request<unknown>(
+          `/repair/${encodeURIComponent(projectId)}/deliveries`,
+        ).then(parseRepairDeliveriesEnvelope),
     },
     collaboration: (project: Project) =>
       request<JsonRecord>(
