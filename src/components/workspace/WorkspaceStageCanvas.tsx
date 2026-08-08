@@ -1,4 +1,11 @@
-import { Bot, Download, History, Plug, RefreshCw, Settings2 } from "lucide-react";
+import {
+  Bot,
+  Download,
+  History,
+  Plug,
+  RefreshCw,
+  Settings2,
+} from "lucide-react";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { CoverGeneratorDialog } from "@/components/projects/CoverGeneratorDialog";

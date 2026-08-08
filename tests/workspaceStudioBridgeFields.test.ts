@@ -61,12 +61,20 @@ test("P13 classifies 100 generated Studio bridge entries without cross-marking s
     } else if (
       (STUDIO_CONNECTION_FIELD_KEYS as readonly string[]).includes(key)
     ) {
-      assert.equal(marker, "connection", `expected connection marker for "${key}"`);
+      assert.equal(
+        marker,
+        "connection",
+        `expected connection marker for "${key}"`,
+      );
       assert.equal(isStudioConnectionField(key), true);
       assert.equal(isStudioSyncField(key), false);
       seededConnection = true;
     } else {
-      assert.equal(marker, null, `expected no marker for unrelated key "${key}"`);
+      assert.equal(
+        marker,
+        null,
+        `expected no marker for unrelated key "${key}"`,
+      );
       assert.equal(isStudioSyncField(key), false);
       assert.equal(isStudioConnectionField(key), false);
       seededUnrelated = true;

@@ -19,8 +19,7 @@ export type StudioConnectionFieldKey =
   (typeof STUDIO_CONNECTION_FIELD_KEYS)[number];
 
 export type StudioBridgeFieldKey =
-  | StudioSyncFieldKey
-  | StudioConnectionFieldKey;
+  StudioSyncFieldKey | StudioConnectionFieldKey;
 
 export type StudioBridgeFieldMarker = "sync" | "connection" | null;
 
@@ -45,9 +44,7 @@ export function isStudioConnectionField(
  * render sync fields with a distinct marker so they are never confused
  * with live connection status (see STUDIO-SYNC-1A-FE).
  */
-export function studioBridgeFieldMarker(
-  key: string,
-): StudioBridgeFieldMarker {
+export function studioBridgeFieldMarker(key: string): StudioBridgeFieldMarker {
   if (isStudioSyncField(key)) return "sync";
   if (isStudioConnectionField(key)) return "connection";
   return null;
