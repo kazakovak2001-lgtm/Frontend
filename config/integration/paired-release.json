@@ -3,15 +3,15 @@
   "delivery": "INTEGRATION-1A",
   "frontend": {
     "repository": "kazakovak2001-lgtm/Frontend",
-    "baselineSha": "06203ad0c296892d02467b2b566409fa10201cf6",
+    "baselineSha": "33cb19310ad15097eac1ff53832ee7d8191bd65e",
     "candidateBranch": "main"
   },
   "backend": {
     "repository": "kazakovak2001-lgtm/RobloxAIStudio2",
     "releaseBranch": "release/cutover-1e-candidate",
-    "baselineSha": "f3b89c9048884528eb8baa4d5a19e406cc1c6315",
+    "baselineSha": "243116da73808cc4a1202cb007d9bd1f2dad2b69",
     "candidateBranch": "release/cutover-1e-candidate",
-    "candidateSha": "f3b89c9048884528eb8baa4d5a19e406cc1c6315"
+    "candidateSha": "243116da73808cc4a1202cb007d9bd1f2dad2b69"
   },
   "contract": {
     "backendPaths": [
