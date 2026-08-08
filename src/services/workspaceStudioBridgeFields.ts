@@ -49,3 +49,19 @@ export function studioBridgeFieldMarker(key: string): StudioBridgeFieldMarker {
   if (isStudioConnectionField(key)) return "connection";
   return null;
 }
+
+export const STUDIO_SYNC_FIELD_ARIA_LABEL = "Studio sync message";
+export const STUDIO_CONNECTION_FIELD_ARIA_LABEL = "Studio connection message";
+
+/**
+ * Single source of truth for the accessible label the UI attaches to a
+ * Studio bridge field's marker icon. Rendering code must read this value
+ * rather than hard-coding its own label, so a rendered field's marker can
+ * never silently drift from its classification.
+ */
+export function studioBridgeFieldAriaLabel(key: string): string | null {
+  const marker = studioBridgeFieldMarker(key);
+  if (marker === "sync") return STUDIO_SYNC_FIELD_ARIA_LABEL;
+  if (marker === "connection") return STUDIO_CONNECTION_FIELD_ARIA_LABEL;
+  return null;
+}

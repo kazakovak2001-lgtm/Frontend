@@ -26,6 +26,7 @@ import {
   type WorkspaceStudioVerificationStatus,
 } from "@/services/workspaceStudioStatus";
 import {
+  studioBridgeFieldAriaLabel,
   studioBridgeFieldMarker,
   type StudioBridgeFieldKey,
 } from "@/services/workspaceStudioBridgeFields";
@@ -762,18 +763,19 @@ function DataField({
   fieldKey?: StudioBridgeFieldKey;
 }) {
   const marker = fieldKey ? studioBridgeFieldMarker(fieldKey) : null;
+  const ariaLabel = fieldKey ? studioBridgeFieldAriaLabel(fieldKey) : null;
   return (
     <div className="rounded-xl border border-border/60 bg-background/40 p-3">
       <dt className="flex items-center gap-1 text-xs text-muted-foreground">
         {marker === "sync" ? (
           <RefreshCw
             className="h-3 w-3 shrink-0 text-sky-400"
-            aria-label="Studio sync message"
+            aria-label={ariaLabel ?? undefined}
           />
         ) : marker === "connection" ? (
           <Plug
             className="h-3 w-3 shrink-0 text-muted-foreground/70"
-            aria-label="Studio connection message"
+            aria-label={ariaLabel ?? undefined}
           />
         ) : null}
         <span>{label}</span>
