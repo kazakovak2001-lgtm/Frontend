@@ -28,6 +28,12 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
   const [error, setError] = useState<string>();
   const [connected, setConnected] = useState(false);
   const reconciliationGuard = useRef(createLatestRequestGuard()).current;
+  // Separate from the reconciliation guard: a mutation outlives the render
+  // that started it, so it captures a `reconcile` closure bound to the
+  // project that was active back then. Without its own guard, a mutation
+  // started on one project would resolve after a project switch and write
+  // the previous project's session into this panel.
+  const mutationGuard = useRef(createLatestRequestGuard()).current;
 
   const reconcile = useCallback(async () => {
     const requestId = reconciliationGuard.begin();
@@ -51,8 +57,10 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
 
   useEffect(() => {
     reconciliationGuard.invalidate();
+    mutationGuard.invalidate();
     setLoading(true);
     setSession(undefined);
+    setMutation(undefined);
     setError(undefined);
     void reconcile();
     const socket = getRealtimeSocket();
@@ -82,29 +90,33 @@ export function AutonomousSessionPanel({ project }: { project: Project }) {
     socket.onAny(onAny);
     return () => {
       reconciliationGuard.invalidate();
+      mutationGuard.invalidate();
       if (timer) clearTimeout(timer);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.offAny(onAny);
     };
-  }, [project.id, reconcile, reconciliationGuard]);
+  }, [project.id, reconcile, reconciliationGuard, mutationGuard]);
 
   const mutate = async <Result,>(
     kind: Mutation,
     operation: () => Promise<Result>,
     publishResult?: (result: Result) => void,
   ) => {
+    const mutationId = mutationGuard.begin();
     reconciliationGuard.invalidate();
     setMutation(kind);
     setError(undefined);
     try {
       const result = await operation();
+      if (!mutationGuard.isCurrent(mutationId)) return;
       publishResult?.(result);
       await reconcile();
     } catch (caught) {
+      if (!mutationGuard.isCurrent(mutationId)) return;
       setError(describeError(caught));
     } finally {
-      setMutation(undefined);
+      if (mutationGuard.isCurrent(mutationId)) setMutation(undefined);
     }
   };
 
