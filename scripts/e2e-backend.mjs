@@ -671,21 +671,6 @@ async function main() {
     );
   });
 
-  await check("playtest and repair modules", async () => {
-    const playtest = await request("/playtest/run", json("POST", qualityInput));
-    const repair = await request(
-      "/repair/run",
-      json("POST", {
-        ...qualityInput,
-        config: { maxIterations: 2 },
-      }),
-    );
-    assert(
-      playtest.overallScore !== undefined && repair.projectId === project.id,
-      "Playtest or repair contract is incomplete",
-    );
-  });
-
   await check("collaboration and autonomous modules", async () => {
     const [collaboration, autonomous] = await Promise.all([
       request(
@@ -939,6 +924,22 @@ async function main() {
     assert(
       updatedProject.status === expectedStatus,
       `Project lifecycle expected ${expectedStatus}, received ${updatedProject.status}`,
+    );
+  });
+
+  await check("playtest and repair modules", async () => {
+    const playtest = await request("/playtest/run", json("POST", qualityInput));
+    const repair = await request(
+      "/repair/run",
+      json("POST", {
+        projectId: project.id,
+        executionId: generation.executionId,
+        config: { maxIterations: 1 },
+      }),
+    );
+    assert(
+      playtest.overallScore !== undefined && repair.projectId === project.id,
+      "Playtest or repair contract is incomplete",
     );
   });
 
