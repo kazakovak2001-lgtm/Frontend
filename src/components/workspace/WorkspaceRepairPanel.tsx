@@ -31,6 +31,12 @@ export function WorkspaceRepairPanel({
   const [mutation, setMutation] = useState<Mutation>();
   const [error, setError] = useState<string>();
   const reconciliationGuard = useRef(createLatestRequestGuard()).current;
+  // Separate from the reconciliation guard: a mutation outlives the render
+  // that started it, so it captures a `reconcile` closure bound to the
+  // project that was active back then. Without its own guard, a mutation
+  // started on one project would resolve after a project switch and write
+  // the previous project's session and deliveries into this panel.
+  const mutationGuard = useRef(createLatestRequestGuard()).current;
 
   const reconcile = useCallback(async () => {
     const requestId = reconciliationGuard.begin();
@@ -58,25 +64,33 @@ export function WorkspaceRepairPanel({
 
   useEffect(() => {
     reconciliationGuard.invalidate();
+    mutationGuard.invalidate();
     setLoading(true);
     setSession(undefined);
     setDeliveries([]);
+    setMutation(undefined);
     setError(undefined);
     void reconcile();
-    return () => reconciliationGuard.invalidate();
-  }, [project.id, reconcile, reconciliationGuard]);
+    return () => {
+      reconciliationGuard.invalidate();
+      mutationGuard.invalidate();
+    };
+  }, [project.id, reconcile, reconciliationGuard, mutationGuard]);
 
   const mutate = async (kind: Mutation, operation: () => Promise<unknown>) => {
+    const mutationId = mutationGuard.begin();
     reconciliationGuard.invalidate();
     setMutation(kind);
     setError(undefined);
     try {
       await operation();
+      if (!mutationGuard.isCurrent(mutationId)) return;
       await reconcile();
     } catch (caught) {
+      if (!mutationGuard.isCurrent(mutationId)) return;
       setError(describeError(caught));
     } finally {
-      setMutation(undefined);
+      if (mutationGuard.isCurrent(mutationId)) setMutation(undefined);
     }
   };
 
