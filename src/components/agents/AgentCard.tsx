@@ -9,6 +9,7 @@ const AGENT_ICONS: Readonly<Record<string, LucideIcon>> = { Bot };
 
 export function AgentCard({ agent }: { agent: Agent }) {
   const Icon = AGENT_ICONS[agent.icon] ?? Bot;
+  const hasProgress = typeof agent.progress === "number";
 
   return (
     <Card className="border-border/60 bg-card/50 p-5 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow">
@@ -31,9 +32,16 @@ export function AgentCard({ agent }: { agent: Agent }) {
       <div className="mt-4">
         <div className="mb-1 flex justify-between text-xs text-muted-foreground">
           <span>Progress</span>
-          <span>{agent.progress}%</span>
+          <span>{hasProgress ? `${agent.progress}%` : "Not reported"}</span>
         </div>
-        <Progress value={agent.progress} className="h-1.5" />
+        {hasProgress ? (
+          <Progress value={agent.progress} className="h-1.5" />
+        ) : (
+          <div
+            className="h-1.5 rounded-full border border-dashed border-border/60"
+            aria-hidden="true"
+          />
+        )}
       </div>
     </Card>
   );

@@ -200,11 +200,24 @@ function describeStudioVerificationBlocker(
   }
 }
 
+/**
+ * Describes a generation-run status string for display. Only statuses the
+ * frontend actually recognizes get a specific description; an unrecognized
+ * status must never be silently folded into "no active generation run" -
+ * that would misrepresent a real (if unfamiliar) backend state as an
+ * absence of one. "draft" is the one status that genuinely means no
+ * generation has ever run for this project - that is positive evidence of
+ * idleness, not an unrecognized value.
+ */
 export function describeWorkspaceRun(status: string): string {
   if (
-    ["running", "starting", "generation_started", "pending_start"].includes(
-      status,
-    )
+    [
+      "running",
+      "starting",
+      "generation_started",
+      "pending_start",
+      "queued",
+    ].includes(status)
   ) {
     return "The generation pipeline is active.";
   }
@@ -214,7 +227,36 @@ export function describeWorkspaceRun(status: string): string {
   if (["failed", "error"].includes(status)) {
     return "The latest known run needs attention.";
   }
-  return "No active generation run is reported.";
+  if (status === "cancelled") {
+    return "The latest known run was cancelled.";
+  }
+  if (status === "draft") {
+    return "No active generation run is reported.";
+  }
+  if (status === "unknown") {
+    return "Generation status is not yet known.";
+  }
+  return `Generation status "${status}" is not recognized by this UI.`;
+}
+
+/**
+ * Describes the realtime pipeline snapshot for display. Progress is only
+ * rendered while the snapshot's own status is "running" - the one state in
+ * which `progress` is backed by a real event (see `reduceRealtimeSnapshotPatch`).
+ * Any other status, including "unknown", renders as plain status text with
+ * no percentage, so a stale or default progress number is never shown next
+ * to a status it does not actually describe.
+ */
+export function describeRealtimeSnapshot(
+  snapshot: { status: string; progress: number } | undefined,
+): string {
+  if (!snapshot || snapshot.status === "unknown") {
+    return "Status not yet reported";
+  }
+  if (snapshot.status === "running") {
+    return `${snapshot.status} · ${snapshot.progress}%`;
+  }
+  return snapshot.status;
 }
 
 export function summarizeWorkspaceResult(

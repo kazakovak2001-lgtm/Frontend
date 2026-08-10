@@ -18,6 +18,9 @@ import {
   parseRepairDeliveriesEnvelope,
   parseRepairSession,
 } from "@/services/workspaceRepair";
+import { mapAgent } from "@/services/realtimeAgentMapping";
+
+export type { RealtimeAgent } from "@/services/realtimeAgentMapping";
 
 const API_BASE_URL = runtimeEndpoints.apiBaseUrl;
 
@@ -70,15 +73,6 @@ export interface PersistedMessage {
 
 export interface Conversation extends ConversationSummary {
   messages: PersistedMessage[];
-}
-
-export interface RealtimeAgent {
-  id: string;
-  name: string;
-  role: string;
-  description: string;
-  status: "idle" | "running" | "completed" | "queued" | "error";
-  progress: number;
 }
 
 export class BackendApiError extends Error {
@@ -304,20 +298,6 @@ async function projectQualityInput(project: Project) {
     json("POST", { projectId: project.id, artifactIds }),
   ).then(parseArtifactTransferResult);
   return buildProjectQualityInput(project.id, transfer);
-}
-
-function mapAgent(raw: JsonRecord, index: number): RealtimeAgent {
-  const id = String(raw.id ?? raw.agentId ?? raw.type ?? `agent-${index}`);
-  return {
-    id,
-    name: String(raw.name ?? raw.type ?? id),
-    role: String(raw.role ?? raw.type ?? "AI agent"),
-    description: String(
-      raw.description ?? raw.capabilities ?? "Backend orchestration agent",
-    ),
-    status: "idle",
-    progress: 0,
-  };
 }
 
 export const backendApi = {
