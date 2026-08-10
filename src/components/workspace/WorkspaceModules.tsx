@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -38,6 +39,7 @@ import {
   type WorkspaceModuleKey as ModuleKey,
   type WorkspaceModuleStage,
 } from "@/components/workspace/workspaceLogic";
+import { createWorkspaceModuleScope } from "@/components/workspace/workspaceModuleScope";
 import { toast } from "sonner";
 import { AutonomousSessionPanel } from "@/components/workspace/AutonomousSessionPanel";
 
@@ -80,6 +82,20 @@ export function WorkspaceModules({
     () => new Set(getWorkspaceModuleKeys(stage)),
     [stage],
   );
+  const scope = useRef(
+    createWorkspaceModuleScope(WORKSPACE_MODULE_KEYS, project.id),
+  ).current;
+
+  // This component instance is reused across project switches (no remount),
+  // so a card's cached result from the previous project must not remain
+  // visible under the new one - even if nothing is currently in flight.
+  useEffect(() => {
+    scope.setActiveProject(project.id);
+    setStates(EMPTY_STATE);
+    return () => {
+      scope.invalidateAll();
+    };
+  }, [project.id, scope]);
 
   const run = useCallback(
     async (
@@ -87,12 +103,14 @@ export function WorkspaceModules({
       operation: () => Promise<unknown>,
       success?: string,
     ) => {
+      const token = scope.begin(key, project.id);
       setStates((current) => ({
         ...current,
         [key]: { ...current[key], loading: true, error: undefined },
       }));
       try {
         const data = await operation();
+        if (!scope.isCurrent(token)) return undefined;
         setStates((current) => ({
           ...current,
           [key]: { loading: false, data },
@@ -100,6 +118,7 @@ export function WorkspaceModules({
         if (success) toast.success(success);
         return data;
       } catch (error) {
+        if (!scope.isCurrent(token)) return undefined;
         const message =
           error instanceof Error ? error.message : "Backend operation failed";
         setStates((current) => ({
@@ -110,7 +129,7 @@ export function WorkspaceModules({
         return undefined;
       }
     },
-    [],
+    [scope, project.id],
   );
 
   useEffect(() => {

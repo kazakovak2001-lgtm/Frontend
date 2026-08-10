@@ -3,6 +3,7 @@ import {
   loadWorkspaceReadModel,
   type WorkspaceReadModel,
 } from "@/services/workspaceReadModel";
+import { createProjectRequestGuard } from "@/services/projectRequestGuard";
 
 export interface ProjectWorkspaceDataState {
   data?: WorkspaceReadModel;
@@ -16,6 +17,15 @@ export interface ProjectWorkspaceDataState {
  * Loads the canonical persisted Workspace data over the existing backend API.
  * The hook owns request cancellation semantics but does not duplicate project,
  * chat, realtime, or generation state stores.
+ *
+ * `refresh` is handed out to callers that may invoke it long after this
+ * hook's project has changed (e.g. after an unrelated mutation elsewhere in
+ * the workspace route resolves). A stale call must never publish over a
+ * newer project's data, so every call is tagged with the project id it was
+ * created for and checked against both that identity and request ordering
+ * before touching state - a shared, project-unaware counter alone lets a
+ * stale call look "current" simply because nothing newer has incremented it
+ * yet for the project it actually belongs to.
  */
 export function useProjectWorkspaceData(
   projectId: string,
@@ -24,16 +34,16 @@ export function useProjectWorkspaceData(
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string>();
-  const requestIdRef = useRef(0);
+  const guard = useRef(createProjectRequestGuard(projectId)).current;
 
   const refresh = useCallback(async () => {
-    const requestId = ++requestIdRef.current;
+    const token = guard.begin(projectId);
     setRefreshing(true);
     setError(undefined);
 
     try {
       const next = await loadWorkspaceReadModel(projectId);
-      if (requestId === requestIdRef.current) {
+      if (guard.isCurrent(token)) {
         setData(next);
       }
       return next;
@@ -42,28 +52,29 @@ export function useProjectWorkspaceData(
         cause instanceof Error
           ? cause.message
           : "Workspace data is unavailable";
-      if (requestId === requestIdRef.current) {
+      if (guard.isCurrent(token)) {
         setError(message);
       }
       return undefined;
     } finally {
-      if (requestId === requestIdRef.current) {
+      if (guard.isCurrent(token)) {
         setLoading(false);
         setRefreshing(false);
       }
     }
-  }, [projectId]);
+  }, [projectId, guard]);
 
   useEffect(() => {
+    guard.setActiveProject(projectId);
     setData(undefined);
     setLoading(true);
     setError(undefined);
     void refresh();
 
     return () => {
-      requestIdRef.current += 1;
+      guard.invalidate();
     };
-  }, [refresh]);
+  }, [projectId, refresh, guard]);
 
   return { data, loading, refreshing, error, refresh };
 }
