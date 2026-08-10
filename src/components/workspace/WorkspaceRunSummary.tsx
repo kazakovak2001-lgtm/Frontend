@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { WorkspaceExecution } from "@/services/workspaceReadModel";
+import { describeWorkspaceRun } from "@/components/workspace/workspaceLogic";
 
 export function WorkspaceRunSummary({
   projectStatus,
@@ -37,7 +38,7 @@ export function WorkspaceRunSummary({
             <h2 className="font-semibold">Current generation run</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {currentStep || describeStatus(status)}
+            {currentStep || describeWorkspaceRun(status)}
           </p>
         </div>
         <Badge variant="outline" className="w-fit border-border/60 capitalize">
@@ -92,21 +93,4 @@ function Metric({
       <p className="mt-1 text-lg font-semibold">{value}</p>
     </div>
   );
-}
-
-function describeStatus(status: string): string {
-  switch (status) {
-    case "running":
-    case "generation_started":
-    case "starting":
-    case "pending_start":
-      return "The generation pipeline is running.";
-    case "completed":
-    case "ready":
-      return "The latest generation run completed.";
-    case "failed":
-      return "The latest generation run requires attention.";
-    default:
-      return "No active generation run. Start generation when the project brief is ready.";
-  }
 }

@@ -8,6 +8,10 @@ import {
   useWorkspace,
   type WorkspaceRealtimeSnapshot,
 } from "@/contexts/WorkspaceContext";
+import {
+  reduceRealtimeAgents,
+  reduceRealtimeSnapshotPatch,
+} from "@/hooks/realtimeAgentEvents";
 import type { Agent, LogEntry } from "@/types";
 
 export interface RealtimeEvent {
@@ -19,7 +23,7 @@ export interface RealtimeEvent {
 
 const INITIAL_SNAPSHOT: WorkspaceRealtimeSnapshot = {
   connected: false,
-  status: "idle",
+  status: "unknown",
   progress: 0,
   updatedAt: new Date(0).toISOString(),
 };
@@ -94,67 +98,15 @@ export function useProjectRealtime(projectId?: string) {
       };
       setEvents((current) => [...current.slice(-199), event]);
 
-      if (type === "pipeline.started" || type === "generation.started") {
-        update({ status: "running", progress: 0 });
-      } else if (
-        type === "pipeline.completed" ||
-        type === "generation.completed"
+      const snapshotPatch = reduceRealtimeSnapshotPatch(type, payload);
+      if (snapshotPatch) update(snapshotPatch);
+
+      if (
+        type === "step.started" ||
+        type === "step.completed" ||
+        type === "step.failed"
       ) {
-        update({ status: "completed", progress: 100 });
-      } else if (type === "pipeline.failed" || type === "generation.failed") {
-        update({ status: "failed" });
-      } else if (type === "step.started" || type === "step.completed") {
-        const agentId = String(payload.agentId ?? payload.stepId ?? "agent");
-        const completed = type === "step.completed";
-        const progress = completed ? 100 : Number(payload.progress ?? 0);
-        update((current) => ({
-          status: "running",
-          progress: completed
-            ? Math.min(95, current.progress + 10)
-            : Math.max(current.progress, Number(payload.progress ?? 0)),
-          currentStep: String(payload.stepId ?? ""),
-        }));
-        setAgents((current) => {
-          const next: Agent = {
-            id: agentId,
-            name: agentId,
-            role: String(payload.stepId ?? "Pipeline step"),
-            description: completed
-              ? "Completed by the backend pipeline."
-              : "Currently executing on the backend.",
-            status: completed ? "completed" : "running",
-            progress,
-            icon: "Bot",
-          };
-          const found = current.some((agent) => agent.id === agentId);
-          return found
-            ? current.map((agent) => (agent.id === agentId ? next : agent))
-            : [...current, next];
-        });
-      } else if (type === "step.failed") {
-        const agentId = String(payload.agentId ?? payload.stepId ?? "agent");
-        setAgents((current) => {
-          const found = current.some((agent) => agent.id === agentId);
-          if (found) {
-            return current.map((agent) =>
-              agent.id === agentId
-                ? { ...agent, status: "error", progress: 0 }
-                : agent,
-            );
-          }
-          return [
-            ...current,
-            {
-              id: agentId,
-              name: agentId,
-              role: String(payload.stepId ?? "Pipeline step"),
-              description: String(payload.error ?? "Backend step failed."),
-              status: "error",
-              progress: 0,
-              icon: "Bot",
-            },
-          ];
-        });
+        setAgents((current) => reduceRealtimeAgents(current, type, payload));
       }
     };
 

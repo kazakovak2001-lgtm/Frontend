@@ -31,6 +31,7 @@ import { initials } from "@/utils/format";
 import { cn } from "@/lib/utils";
 import { useProjects } from "@/contexts/ProjectsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { describeRealtimeSnapshot } from "@/components/workspace/workspaceLogic";
 import { PageLoader } from "@/components/PageLoader";
 
 const NAV_ITEMS = [
@@ -84,7 +85,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           {activeProjectId
-            ? `${live?.status ?? "idle"} · ${live?.progress ?? 0}%`
+            ? describeRealtimeSnapshot(live)
             : "Open a project workspace to follow its live pipeline."}
         </p>
         <Badge

@@ -172,7 +172,12 @@ function ProjectWorkspacePage() {
           activeExecutionId,
         );
         if (!active) return;
-        const status = String(execution.status ?? "running");
+        // A missing status means the backend did not report one - treat it
+        // as unknown, never assume the run is still "running".
+        const status =
+          typeof execution.status === "string" && execution.status.length > 0
+            ? execution.status
+            : "unknown";
         setRun({
           projectId,
           executionId: activeExecutionId,

@@ -4,6 +4,7 @@ import {
   WORKSPACE_MODULE_KEYS,
   WORKSPACE_MODULE_STAGES,
   buildWorkspaceBlockers,
+  describeRealtimeSnapshot,
   describeWorkspaceRun,
   getWorkspaceModuleKeys,
   getWorkspaceNextAction,
@@ -207,5 +208,46 @@ test("run descriptions distinguish active, completed, failed and idle", () => {
   assert.equal(
     describeWorkspaceRun("draft"),
     "No active generation run is reported.",
+  );
+});
+
+test("an unrecognized run status is never folded into 'no active generation run'", () => {
+  const described = describeWorkspaceRun("some-future-backend-status");
+  assert.notEqual(described, "No active generation run is reported.");
+  assert.equal(
+    described,
+    'Generation status "some-future-backend-status" is not recognized by this UI.',
+  );
+});
+
+test("the explicit 'unknown' status gets its own truthful description, distinct from both 'draft' and generic unrecognized text", () => {
+  const described = describeWorkspaceRun("unknown");
+  assert.equal(described, "Generation status is not yet known.");
+  assert.notEqual(described, "No active generation run is reported.");
+});
+
+test("realtime snapshot description shows progress only while genuinely running", () => {
+  assert.equal(
+    describeRealtimeSnapshot({ status: "running", progress: 42 }),
+    "running · 42%",
+  );
+});
+
+test("realtime snapshot description never fabricates status/progress when no snapshot has been reported yet", () => {
+  assert.equal(describeRealtimeSnapshot(undefined), "Status not yet reported");
+  assert.equal(
+    describeRealtimeSnapshot({ status: "unknown", progress: 0 }),
+    "Status not yet reported",
+  );
+});
+
+test("realtime snapshot description shows a terminal status without a stale/irrelevant percentage", () => {
+  assert.equal(
+    describeRealtimeSnapshot({ status: "completed", progress: 100 }),
+    "completed",
+  );
+  assert.equal(
+    describeRealtimeSnapshot({ status: "failed", progress: 30 }),
+    "failed",
   );
 });

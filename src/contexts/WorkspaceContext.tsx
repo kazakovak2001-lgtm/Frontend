@@ -16,7 +16,8 @@ export interface WorkspaceRun {
 
 export interface WorkspaceRealtimeSnapshot {
   connected: boolean;
-  status: "idle" | "running" | "completed" | "failed";
+  /** `"unknown"` until a real pipeline/generation event has been observed this session. */
+  status: "unknown" | "running" | "completed" | "failed";
   progress: number;
   currentStep?: string;
   updatedAt: string;

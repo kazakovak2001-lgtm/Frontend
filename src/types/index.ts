@@ -40,15 +40,18 @@ export interface User {
   avatarUrl?: string;
 }
 
-export type AgentStatus = "idle" | "running" | "completed" | "queued" | "error";
+export type AgentStatus =
+  "idle" | "running" | "completed" | "queued" | "error" | "unknown";
 
 export interface Agent {
   id: string;
   name: string;
   role: string;
   description: string;
+  /** `"unknown"` when the backend did not report a recognized status - never inferred. */
   status: AgentStatus;
-  progress: number;
+  /** `undefined` when the backend did not report a progress value - never defaulted to 0. */
+  progress?: number;
   icon: string;
 }
 

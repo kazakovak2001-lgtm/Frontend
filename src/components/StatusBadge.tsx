@@ -12,6 +12,7 @@ const STATUS_STYLES: Record<string, string> = {
   queued: "bg-warning/15 text-warning border-warning/30",
   completed: "bg-success/15 text-success border-success/30",
   error: "bg-destructive/15 text-destructive border-destructive/30",
+  unknown: "bg-muted text-muted-foreground border-dashed border-border",
 };
 
 const LABELS: Record<string, string> = {
@@ -24,6 +25,7 @@ const LABELS: Record<string, string> = {
   queued: "Queued",
   completed: "Completed",
   error: "Error",
+  unknown: "Unknown",
 };
 
 export function StatusBadge({
