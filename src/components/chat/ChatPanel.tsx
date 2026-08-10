@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
 import type { ChatMessage, Project } from "@/types";
 import { backendApi } from "@/services/backendApi";
 import { toast } from "sonner";
+import {
+  createChatProjectScope,
+  deriveConversationState,
+} from "./chatProjectCoordination";
 
 export function ChatPanel({ project }: { project: Project }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -16,6 +20,7 @@ export function ChatPanel({ project }: { project: Project }) {
   const [thinking, setThinking] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scope = useRef(createChatProjectScope(project.id)).current;
 
   useEffect(() => {
     const viewport = messagesRef.current;
@@ -28,40 +33,40 @@ export function ChatPanel({ project }: { project: Project }) {
   }, []);
 
   useEffect(() => {
-    let active = true;
+    scope.rebind(project.id);
     setLoadingHistory(true);
+    setMessages([]);
+    setConversationId(undefined);
+    setThinking(false);
+    const token = scope.beginReconciliation();
     backendApi.workspace.chat
       .history(project.id)
       .then(async (history) => {
-        if (!history[0]) return;
-        const conversation = await backendApi.workspace.chat.conversation(
-          history[0].id,
-        );
-        if (!active) return;
-        setConversationId(conversation.id);
-        setMessages(
-          conversation.messages
-            .filter((message) => message.role !== "system")
-            .map((message) => ({
-              id: message.id,
-              role: message.role === "user" ? "user" : "assistant",
-              content: message.content,
-              createdAt: message.createdAt,
-            })),
-        );
+        const conversation = history[0]
+          ? await backendApi.workspace.chat.conversation(history[0].id)
+          : undefined;
+        if (!scope.isReconciliationCurrent(token)) return;
+        const derived = deriveConversationState(conversation);
+        setConversationId(derived.conversationId);
+        setMessages(derived.messages);
       })
-      .catch((error) => console.warn("[chat] history load failed", error))
+      .catch((error) => {
+        if (!scope.isReconciliationCurrent(token)) return;
+        console.warn("[chat] history load failed", error);
+      })
       .finally(() => {
-        if (active) setLoadingHistory(false);
+        if (scope.isReconciliationCurrent(token)) setLoadingHistory(false);
       });
     return () => {
-      active = false;
+      scope.invalidateAll();
     };
-  }, [project.id]);
+  }, [project.id, scope]);
 
   const send = async () => {
     const text = input.trim();
     if (!text || thinking) return;
+    const token = scope.beginMutation();
+    const startConversationId = conversationId;
     const userMsg: ChatMessage = {
       id: "m_" + Date.now(),
       role: "user",
@@ -74,20 +79,24 @@ export function ChatPanel({ project }: { project: Project }) {
     setThinking(true);
     try {
       const savedUser = await backendApi.workspace.chat.saveMessage({
-        conversationId,
-        projectId: conversationId ? undefined : project.id,
+        conversationId: startConversationId,
+        projectId: startConversationId ? undefined : token.projectId,
         role: "user",
         content: text,
       });
-      const activeConversationId = conversationId ?? savedUser.conversationId;
+      if (!scope.isMutationCurrent(token)) return;
+      const activeConversationId =
+        startConversationId ?? savedUser.conversationId;
       setConversationId(activeConversationId);
 
       const response = await backendApi.ai.chat(nextMessages, project);
+      if (!scope.isMutationCurrent(token)) return;
       const savedAssistant = await backendApi.workspace.chat.saveMessage({
         conversationId: activeConversationId,
         role: "assistant",
         content: response.content,
       });
+      if (!scope.isMutationCurrent(token)) return;
       setMessages((prev) => [
         ...prev,
         {
@@ -98,6 +107,7 @@ export function ChatPanel({ project }: { project: Project }) {
         },
       ]);
     } catch (error) {
+      if (!scope.isMutationCurrent(token)) return;
       setMessages((prev) => [
         ...prev,
         {
@@ -111,20 +121,28 @@ export function ChatPanel({ project }: { project: Project }) {
         },
       ]);
     } finally {
-      setThinking(false);
-      inputRef.current?.focus({ preventScroll: true });
+      if (scope.isMutationCurrent(token)) {
+        setThinking(false);
+        inputRef.current?.focus({ preventScroll: true });
+      }
     }
   };
 
   const clearConversation = async () => {
+    const token = scope.beginMutation();
+    const targetConversationId = conversationId;
     try {
-      if (conversationId) {
-        await backendApi.workspace.chat.removeConversation(conversationId);
+      if (targetConversationId) {
+        await backendApi.workspace.chat.removeConversation(
+          targetConversationId,
+        );
       }
+      if (!scope.isMutationCurrent(token)) return;
       setConversationId(undefined);
       setMessages([]);
       toast.success("Conversation cleared.");
     } catch (error) {
+      if (!scope.isMutationCurrent(token)) return;
       toast.error(
         error instanceof Error ? error.message : "Conversation clear failed.",
       );
