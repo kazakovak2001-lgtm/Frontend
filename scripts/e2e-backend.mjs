@@ -39,9 +39,12 @@ function assert(condition, message) {
 
 // Truthful backend: no quality score, because nothing measures quality.
 // Legacy backend: a historical heuristic number, accepted but not interpreted.
+// The legacy number is still held to the zero-to-one-hundred range the legacy
+// contract always declared, so a malformed payload cannot pass as historical.
 function isTransitionalQualityScore(value) {
   const isTruthfulAbsence = value === null;
-  const isLegacyHistoricalHeuristic = Number.isFinite(value);
+  const isLegacyHistoricalHeuristic =
+    Number.isFinite(value) && value >= 0 && value <= 100;
   return isTruthfulAbsence || isLegacyHistoricalHeuristic;
 }
 
