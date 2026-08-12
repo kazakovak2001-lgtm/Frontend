@@ -708,9 +708,7 @@ async function main() {
         terminal.status === "preview_completed" &&
         terminal.executionMode === "bounded" &&
         terminal.resultAuthority === "preview-only" &&
-        Number.isFinite(terminal.qualityScore) &&
-        terminal.qualityScore >= 0 &&
-        terminal.qualityScore <= 100 &&
+        terminal.qualityScore === null &&
         terminal.cost?.totalCost === 0 &&
         terminal.cost?.source === "measured" &&
         luaPhase?.status === "completed" &&
@@ -938,7 +936,12 @@ async function main() {
       }),
     );
     assert(
-      playtest.overallScore !== undefined && repair.projectId === project.id,
+      playtest.evidenceKind === "static-analysis" &&
+        playtest.runtime?.status === "not-measured" &&
+        playtest.overallScore === undefined &&
+        playtest.classification === undefined &&
+        Array.isArray(playtest.issues) &&
+        repair.projectId === project.id,
       "Playtest or repair contract is incomplete",
     );
   });
