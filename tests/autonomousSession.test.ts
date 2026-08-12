@@ -105,3 +105,25 @@ test("reconciliation guard rejects superseded and invalidated responses", () => 
   guard.invalidate();
   assert.equal(guard.isCurrent(second), false);
 });
+
+test("autonomous quality score stays null when nothing measured it", () => {
+  // PLAYTEST-TRUTH-1. The backend used to fill this from the playtest
+  // heuristic, whose total added five points when the generated source
+  // contained the substring `pcall`. Nothing measures quality now, so every
+  // session reports null, and the parser's null branch — previously
+  // uncovered, because every fixture carried a number — has to hold.
+  const parsed = parseAutonomousSession({
+    ...sessionFixture(),
+    qualityScore: null,
+  });
+
+  assert.equal(parsed.qualityScore, null);
+});
+
+test("autonomous quality score still rejects a non-numeric value", () => {
+  // Null is a real value here; a string is still a malformed response, and
+  // accepting one would let an unparsed payload read as a measurement.
+  assert.throws(() =>
+    parseAutonomousSession({ ...sessionFixture(), qualityScore: "80" }),
+  );
+});
