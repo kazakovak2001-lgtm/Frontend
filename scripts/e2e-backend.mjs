@@ -33,13 +33,19 @@ function isTruthfulQualityScore(value) {
 }
 
 // Labelled static-analysis evidence, runtime explicitly not measured, and
-// neither a total nor a classification standing in for a measurement.
+// nothing standing in for a measurement: no total, no classification, and no
+// score under the session's name either. `qualityScore` is asserted absent
+// rather than null because the playtest response has no such field — only the
+// autonomous session does, and that one is required to be null at its own call
+// site. Pinning the absence keeps a regression from reintroducing the number
+// here under a name the other two checks do not cover.
 function isTruthfulPlaytestEvidence(playtest) {
   return (
     playtest.evidenceKind === "static-analysis" &&
     playtest.runtime?.status === "not-measured" &&
     playtest.overallScore === undefined &&
-    playtest.classification === undefined
+    playtest.classification === undefined &&
+    playtest.qualityScore === undefined
   );
 }
 
