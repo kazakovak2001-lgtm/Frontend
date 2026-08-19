@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { pathToFileURL } from "node:url";
 import { io } from "socket.io-client";
 
 const EXPECTED_CHECK_COUNT = 40;
@@ -11,6 +12,64 @@ const evidencePath = process.env.E2E_EVIDENCE_PATH;
 const suiteStartedAt = new Date();
 const cookies = new Map();
 const completedChecks = [];
+
+// CI-FRONTEND-CONTRACT-2. No raw fetch in this script may hang forever: a
+// backend that never answers must not keep the whole suite (and the CI job
+// running it) alive indefinitely. 30s is generous for every real endpoint
+// this script calls, including generation start, while staying far below any
+// CI-level job timeout.
+export const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * CI-FRONTEND-CONTRACT-2.
+ *
+ * Every Socket.IO client this script opens is tracked here the moment it is
+ * created. Each normal-flow disconnect (`disconnectSocket`) untracks it, so
+ * the success path calls the underlying `socket.disconnect()` exactly once —
+ * `disconnectAllTrackedSockets` finds nothing left to do. A throw anywhere
+ * after a socket was created — before its normal-flow disconnect ran — still
+ * leaves it in this set, so the top-level `finally` in `run()` below reaches
+ * it regardless of which check failed or how many sockets were open.
+ */
+const openSockets = new Set();
+
+export function trackSocket(socket) {
+  openSockets.add(socket);
+  return socket;
+}
+
+export function untrackSocket(socket) {
+  openSockets.delete(socket);
+}
+
+/** The one path a socket should take on the success flow: untrack, then close. */
+export function disconnectSocket(socket) {
+  untrackSocket(socket);
+  socket.disconnect();
+}
+
+/** Cleanup backstop: closes whatever normal flow never got to. */
+export function disconnectAllTrackedSockets() {
+  for (const socket of openSockets) {
+    socket.disconnect();
+  }
+  openSockets.clear();
+}
+
+/**
+ * MAR-004. Same header semantics as the production frontend
+ * (`src/services/backendApi.ts`'s `generationIdempotencyKey`): the backend's
+ * `POST /projects/:id/generate` requires a non-empty `Idempotency-Key`, and
+ * refuses the request otherwise. This script issues one generation start per
+ * run and never retries it, so it does not need the production helper's
+ * per-project retry memo — only a key that is guaranteed non-empty and, per
+ * run, reproducible for anyone reading the logs. Built from the same
+ * `suffix` every other per-run identifier in this script already uses,
+ * rather than a fresh random source.
+ */
+export function generateIdempotencyKey(projectId, suffix) {
+  return `e2e-generate-${projectId}-${suffix}`;
+}
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -174,9 +233,27 @@ function realtimeConnectionOptions() {
   };
 }
 
-async function request(path, options = {}, expectedStatus) {
+/**
+ * CI-FRONTEND-CONTRACT-2. Bounded so a backend that never answers cannot
+ * hang this script (and whatever CI job is running it) forever. Any
+ * caller-supplied signal is preserved: `AbortSignal.any` fires on whichever
+ * of the two aborts first, so an explicit caller abort still wins, and the
+ * backstop timeout only matters when the caller supplied none.
+ *
+ * `timeoutMs` is a parameter (defaulting to `REQUEST_TIMEOUT_MS`) rather than
+ * reading the module constant directly, so a regression test can prove this
+ * actually fires — and does so quickly — without waiting out the real
+ * production timeout.
+ */
+export function resolveAbortSignal(callerSignal, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const bound = AbortSignal.timeout(timeoutMs);
+  return callerSignal ? AbortSignal.any([callerSignal, bound]) : bound;
+}
+
+export async function request(path, options = {}, expectedStatus) {
   const response = await fetch(`${apiBase}${path}`, {
     ...options,
+    signal: resolveAbortSignal(options.signal),
     headers: {
       "Content-Type": "application/json",
       ...(cookieHeader() ? { Cookie: cookieHeader() } : {}),
@@ -842,14 +919,14 @@ async function main() {
       "A project-scoped REST contract leaked across users",
     );
 
-    const intruderSocket = io(socketBase, realtimeConnectionOptions());
+    const intruderSocket = trackSocket(io(socketBase, realtimeConnectionOptions()));
     if (!intruderSocket.connected) {
       await waitForSocket(intruderSocket, "connect");
     }
     const denied = waitForSocket(intruderSocket, "project:error");
     intruderSocket.emit("project:join", { projectId: project.id });
     const denial = await denied;
-    intruderSocket.disconnect();
+    disconnectSocket(intruderSocket);
     assert(
       denial.projectId === project.id,
       "Realtime project room was not isolated",
@@ -882,7 +959,7 @@ async function main() {
     assert(sync.success === false, "Disconnected Studio sync must be rejected");
   });
 
-  const socket = io(socketBase, realtimeConnectionOptions());
+  const socket = trackSocket(io(socketBase, realtimeConnectionOptions()));
   socket.on("connect_error", (error) => {
     console.error(`Socket.IO connect_error: ${error.message}`);
   });
@@ -902,7 +979,12 @@ async function main() {
   });
 
   const generation = await check("start generation", () =>
-    request(`/projects/${project.id}/generate`, json("POST", { userId })),
+    request(`/projects/${project.id}/generate`, {
+      ...json("POST", { userId }),
+      headers: {
+        "Idempotency-Key": generateIdempotencyKey(project.id, suffix),
+      },
+    }),
   );
   const terminal = await check("poll generation to completion", () =>
     waitForTerminalGeneration(project.id, generation.executionId),
@@ -938,7 +1020,7 @@ async function main() {
       "No realtime step events were delivered",
     );
   });
-  socket.disconnect();
+  disconnectSocket(socket);
 
   await check("generation history and project lifecycle", async () => {
     const history = await request(`/projects/${project.id}/history`);
@@ -1051,7 +1133,7 @@ async function main() {
   );
 }
 
-async function run() {
+export async function run() {
   try {
     await main();
     await writeEvidence("passed");
@@ -1064,10 +1146,29 @@ async function run() {
       );
     }
     throw error;
+  } finally {
+    // CI-FRONTEND-CONTRACT-2. Runs on every exit from `main()`, success or
+    // failure. On success this finds nothing left tracked — both sockets
+    // already disconnected themselves via `disconnectSocket` — so it is a
+    // no-op there. On any throw after a socket was opened, this is what
+    // actually closes it: without this, an open Socket.IO client keeps
+    // Node's event loop alive and the process never exits on its own,
+    // regardless of `process.exitCode` already being set below.
+    disconnectAllTrackedSockets();
   }
 }
 
-run().catch((error) => {
-  console.error(`\nE2E failed: ${error.stack ?? error.message ?? error}`);
-  process.exitCode = 1;
-});
+// Only run the suite when this file is executed directly (`node
+// e2e-backend.mjs`, or the RBAC-generated copy spawned the same way).
+// Importing it — as the regression tests for the exports above do — must
+// not trigger a live 40-check run against a backend that may not exist.
+const isDirectExecution =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectExecution) {
+  run().catch((error) => {
+    console.error(`\nE2E failed: ${error.stack ?? error.message ?? error}`);
+    process.exitCode = 1;
+  });
+}
