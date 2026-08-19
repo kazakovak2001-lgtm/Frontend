@@ -10,8 +10,8 @@
     "repository": "kazakovak2001-lgtm/RobloxAIStudio2",
     "releaseBranch": "release/cutover-1e-candidate",
     "baselineSha": "63221e79854be718e75a8582b6a7afe248ecb22a",
-    "candidateBranch": "release/cutover-1e-candidate",
-    "candidateSha": "63221e79854be718e75a8582b6a7afe248ecb22a"
+    "candidateBranch": "integration/mar-remediation-2026-08-18",
+    "candidateSha": "92c2b7d16387cf39ec416884a3e5bf2c34c9b577"
   },
   "contract": {
     "backendPaths": [
