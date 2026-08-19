@@ -11,7 +11,7 @@
     "releaseBranch": "release/cutover-1e-candidate",
     "baselineSha": "63221e79854be718e75a8582b6a7afe248ecb22a",
     "candidateBranch": "integration/mar-remediation-2026-08-18",
-    "candidateSha": "92c2b7d16387cf39ec416884a3e5bf2c34c9b577"
+    "candidateSha": "a0ef1b29996ff9f63c308ce1a134298901c16608"
   },
   "contract": {
     "backendPaths": [
