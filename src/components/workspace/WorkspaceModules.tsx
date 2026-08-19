@@ -362,6 +362,16 @@ export function WorkspaceModules({
       ),
     },
     {
+      // GENERATION-SURFACE-CANONICALIZATION-1. This card used to also expose
+      // a button for the generation-v2 diagnostic pipeline: a separate,
+      // non-durable path that never writes an execution, history entry or
+      // ArtifactStore artifact. Sitting next to the canonical Generate button
+      // on this same stage, it looked like a second way to generate the
+      // project while silently producing nothing durable. The canonical
+      // action is the page-level "Generate" button
+      // (backendApi.ai.startGeneration); this card keeps only the
+      // diagnostic-adjacent planning tools that do not claim to generate the
+      // project itself.
       key: "planning",
       icon: <GitBranch className="h-5 w-5" />,
       title: "Planning & Autonomous Generation",
@@ -393,18 +403,6 @@ export function WorkspaceModules({
             }
           >
             Inspect DAG
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={states.planning.loading}
-            onClick={() =>
-              void run("planning", () =>
-                backendApi.workspace.generationCore(project),
-              )
-            }
-          >
-            Generation core
           </Button>
         </>
       ),

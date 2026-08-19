@@ -1,17 +1,17 @@
 {
-  "schemaVersion": 1,
-  "delivery": "INTEGRATION-1A",
+  "schemaVersion": 2,
+  "delivery": "MAR-004",
   "frontend": {
     "repository": "kazakovak2001-lgtm/Frontend",
-    "baselineSha": "94736069e049b9614c4012775677c78777f5060d",
-    "candidateBranch": "main"
+    "runtimeSha": "53eddd8b52ced75a6cd65328ab7e9eec146fd4a7",
+    "candidateBranch": "fix/mar-004-generate-idempotency-key"
   },
   "backend": {
     "repository": "kazakovak2001-lgtm/RobloxAIStudio2",
     "releaseBranch": "release/cutover-1e-candidate",
-    "baselineSha": "63221e79854be718e75a8582b6a7afe248ecb22a",
-    "candidateBranch": "release/cutover-1e-candidate",
-    "candidateSha": "63221e79854be718e75a8582b6a7afe248ecb22a"
+    "runtimeSha": "469cd207bf937e5a3bfbbc12f15f92a12bcf955a",
+    "candidateBranch": "integration/mar-remediation-2026-08-18",
+    "candidateSha": "469cd207bf937e5a3bfbbc12f15f92a12bcf955a"
   },
   "contract": {
     "backendPaths": [
