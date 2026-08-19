@@ -55,8 +55,19 @@ async function assertFile(path, label) {
 }
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-if (manifest.schemaVersion !== 1 || manifest.delivery !== "INTEGRATION-1A") {
+const isLegacyIntegrationManifest =
+  manifest.schemaVersion === 1 && manifest.delivery === "INTEGRATION-1A";
+const isCanonicalMar004Manifest =
+  manifest.schemaVersion === 2 && manifest.delivery === "MAR-004";
+if (!isLegacyIntegrationManifest && !isCanonicalMar004Manifest) {
   fail("paired-release manifest identity is invalid");
+}
+if (isCanonicalMar004Manifest) {
+  assertSha(manifest.frontend?.runtimeSha, "manifest.frontend.runtimeSha");
+  assertSha(manifest.backend?.runtimeSha, "manifest.backend.runtimeSha");
+  if (manifest.backend.runtimeSha !== manifest.backend?.candidateSha) {
+    fail("manifest.backend.runtimeSha must equal manifest.backend.candidateSha");
+  }
 }
 
 assertExactArray(
