@@ -610,15 +610,6 @@ export const backendApi = {
           }),
         ),
     },
-    generationCore: (project: Project) =>
-      request<JsonRecord>(
-        "/generate/game",
-        json("POST", {
-          intent: projectIntent(project),
-          constraints: [`Players: ${project.players}`],
-          projectId: project.id,
-        }),
-      ),
     compile: (project: Project) =>
       request<JsonRecord>(
         "/v1/compile",
