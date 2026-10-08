@@ -45,7 +45,7 @@ npm run test:workspace
 `test:workspace` includes, relevant to this slice:
 
 - `tests/generationIdempotency.test.ts` — `Idempotency-Key` sent on
-  `startGeneration`, retried on a lost response with the *same* key, a fresh
+  `startGeneration`, retried on a lost response with the _same_ key, a fresh
   key after any definitive answer (success or 4xx/5xx), never shared across
   projects.
 - `tests/generationStatusPollingRace.test.ts` — an out-of-order (stale)
@@ -74,31 +74,31 @@ Perform each with the real backend running; do not simulate.
 
 1. Create a project via `/projects/new` with a name and description.
    - [ ] Redirects to `/projects/$projectId`; generation begins automatically
-     (see `src/routes/projects.new.tsx`).
+         (see `src/routes/projects.new.tsx`).
 2. Observe the **Generate** button in the workspace header while a run is
    in flight.
    - [ ] Button reads "Generating…" and is disabled — clicking it again (or
-     rapid double-click before disable paints) does not fire a second
-     `POST /projects/:id/generate` (check Network tab: one call per attempt,
-     one `Idempotency-Key` value per attempt-until-a-response).
+         rapid double-click before disable paints) does not fire a second
+         `POST /projects/:id/generate` (check Network tab: one call per attempt,
+         one `Idempotency-Key` value per attempt-until-a-response).
 3. Watch status through to completion.
    - [ ] Distinct visible states for queued/running vs. completed vs. failed
-     (`WorkspaceStageCanvas`) — a failed run is visibly and actionably
-     different from a completed one, not a generic error toast only.
+         (`WorkspaceStageCanvas`) — a failed run is visibly and actionably
+         different from a completed one, not a generic error toast only.
 4. Force a failure (invalid backend state, kill backend mid-run, or a
    project already at a terminal state that 4xx's the start call).
    - [ ] Error surfaces via toast and the run state persists as `failed`,
-     not silently retried into a fake `completed`.
+         not silently retried into a fake `completed`.
 5. Refresh the browser tab mid-run, and again after completion.
    - [ ] Mid-run: status reappears from `GET /projects/:id/history` (project
-     detail's `history[0]` effect), not from `sessionStorage`/React state
-     that reset on reload.
+         detail's `history[0]` effect), not from `sessionStorage`/React state
+         that reset on reload.
    - [ ] Post-completion: project status/progress reflects the backend's
-     `GET /projects/:id` response, not a value invented client-side.
+         `GET /projects/:id` response, not a value invented client-side.
 6. Reopen the same project in a second tab while the first tab's poll is
    still running.
    - [ ] Both tabs converge to the same terminal state; neither tab freezes
-     on a stale `running` after the backend reports a terminal state.
+         on a stale `running` after the backend reports a terminal state.
 
 - [ ] All manual steps pass. Evidence: \_\_\_
 

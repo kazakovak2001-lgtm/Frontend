@@ -66,7 +66,9 @@ if (isCanonicalMar004Manifest) {
   assertSha(manifest.frontend?.runtimeSha, "manifest.frontend.runtimeSha");
   assertSha(manifest.backend?.runtimeSha, "manifest.backend.runtimeSha");
   if (manifest.backend.runtimeSha !== manifest.backend?.candidateSha) {
-    fail("manifest.backend.runtimeSha must equal manifest.backend.candidateSha");
+    fail(
+      "manifest.backend.runtimeSha must equal manifest.backend.candidateSha",
+    );
   }
 }
 

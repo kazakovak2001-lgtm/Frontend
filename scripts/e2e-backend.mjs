@@ -245,7 +245,10 @@ function realtimeConnectionOptions() {
  * actually fires — and does so quickly — without waiting out the real
  * production timeout.
  */
-export function resolveAbortSignal(callerSignal, timeoutMs = REQUEST_TIMEOUT_MS) {
+export function resolveAbortSignal(
+  callerSignal,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+) {
   const bound = AbortSignal.timeout(timeoutMs);
   return callerSignal ? AbortSignal.any([callerSignal, bound]) : bound;
 }
@@ -919,7 +922,9 @@ async function main() {
       "A project-scoped REST contract leaked across users",
     );
 
-    const intruderSocket = trackSocket(io(socketBase, realtimeConnectionOptions()));
+    const intruderSocket = trackSocket(
+      io(socketBase, realtimeConnectionOptions()),
+    );
     if (!intruderSocket.connected) {
       await waitForSocket(intruderSocket, "connect");
     }

@@ -47,7 +47,11 @@ test("Idempotency-Key: generateIdempotencyKey is non-empty and stable for one ru
   const first = generateIdempotencyKey("project-a", "suffix-1");
   const second = generateIdempotencyKey("project-a", "suffix-1");
   assert.ok(first.length > 0, "key must not be empty");
-  assert.equal(first, second, "the same project+suffix must produce the same key");
+  assert.equal(
+    first,
+    second,
+    "the same project+suffix must produce the same key",
+  );
 });
 
 test("Idempotency-Key: different projects or suffixes never share a key", () => {
@@ -61,10 +65,13 @@ test("Idempotency-Key: request() attaches the header on the canonical generate c
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: string, init: RequestInit) => {
     calls.push({ url: String(input), init });
-    return new Response(JSON.stringify({ success: true, data: { executionId: "exec-1" } }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true, data: { executionId: "exec-1" } }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }) as typeof fetch;
 
   try {
@@ -80,7 +87,10 @@ test("Idempotency-Key: request() attaches the header on the canonical generate c
 
   assert.equal(calls.length, 1);
   const headers = calls[0].init.headers as Record<string, string>;
-  assert.ok(headers["Idempotency-Key"]?.length > 0, "Idempotency-Key header must be present and non-empty");
+  assert.ok(
+    headers["Idempotency-Key"]?.length > 0,
+    "Idempotency-Key header must be present and non-empty",
+  );
 });
 
 test("bounded requests: request() never sends without an abort signal", async () => {
@@ -101,8 +111,15 @@ test("bounded requests: request() never sends without an abort signal", async ()
   }
 
   assert.equal(calls.length, 1);
-  assert.ok(calls[0].signal instanceof AbortSignal, "every request must carry a bounded AbortSignal");
-  assert.equal(calls[0].signal?.aborted, false, "the signal must not start aborted");
+  assert.ok(
+    calls[0].signal instanceof AbortSignal,
+    "every request must carry a bounded AbortSignal",
+  );
+  assert.equal(
+    calls[0].signal?.aborted,
+    false,
+    "the signal must not start aborted",
+  );
 });
 
 test("bounded requests: the abort signal actually fires within its configured window", async () => {
@@ -111,7 +128,11 @@ test("bounded requests: the abort signal actually fires within its configured wi
   await new Promise<void>((resolve) => {
     signal.addEventListener("abort", () => resolve(), { once: true });
   });
-  assert.equal(signal.aborted, true, "the signal must abort once its timeout elapses");
+  assert.equal(
+    signal.aborted,
+    true,
+    "the signal must abort once its timeout elapses",
+  );
 });
 
 test("bounded requests: REQUEST_TIMEOUT_MS is a finite, positive bound", () => {
@@ -127,7 +148,11 @@ test("socket cleanup: a tracked socket left open by a throw is disconnected by t
   // valid Idempotency-Key.
   disconnectAllTrackedSockets();
 
-  assert.equal(socket.disconnectCalls, 1, "the backstop must close a socket the normal flow never reached");
+  assert.equal(
+    socket.disconnectCalls,
+    1,
+    "the backstop must close a socket the normal flow never reached",
+  );
 });
 
 test("socket cleanup: the success path disconnects exactly once, not twice", () => {
@@ -165,5 +190,9 @@ test("socket cleanup: untrackSocket removes a socket without closing it", () => 
   const socket = trackSocket(fakeSocket());
   untrackSocket(socket);
   disconnectAllTrackedSockets();
-  assert.equal(socket.disconnectCalls, 0, "untrackSocket must not itself disconnect the socket");
+  assert.equal(
+    socket.disconnectCalls,
+    0,
+    "untrackSocket must not itself disconnect the socket",
+  );
 });
