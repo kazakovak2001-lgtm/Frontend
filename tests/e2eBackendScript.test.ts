@@ -125,8 +125,23 @@ test("bounded requests: request() never sends without an abort signal", async ()
 test("bounded requests: the abort signal actually fires within its configured window", async () => {
   const signal = resolveAbortSignal(undefined, 10);
   assert.equal(signal.aborted, false);
-  await new Promise<void>((resolve) => {
-    signal.addEventListener("abort", () => resolve(), { once: true });
+  // AbortSignal.timeout() uses an unref'd timer, so on Node 22 nothing keeps
+  // the event loop alive while this test waits and the runner cancels it. A
+  // ref'd deadline keeps the loop running and fails the test if the signal
+  // does not fire well within its window.
+  await new Promise<void>((resolve, reject) => {
+    const deadline = setTimeout(
+      () => reject(new Error("the signal did not abort within 1000ms")),
+      1_000,
+    );
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(deadline);
+        resolve();
+      },
+      { once: true },
+    );
   });
   assert.equal(
     signal.aborted,
