@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import type { Difficulty, GameGenre } from "@/types";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { backendApi } from "@/services/backendApi";
 
 export const Route = createFileRoute("/projects/new")({
   head: () => ({ meta: [{ title: "New Project — Roblox AI Studio" }] }),
@@ -63,13 +64,35 @@ function NewProjectPage() {
         players,
         targetAudience: audience,
       });
+      const startedAt = new Date().toISOString();
       setRun({
         projectId: project.id,
         executionId: "pending",
         status: "pending_start",
-        startedAt: new Date().toISOString(),
+        startedAt,
       });
-      toast.success("Project created. Opening the realtime workspace…");
+
+      try {
+        const result = await backendApi.ai.startGeneration(project.id);
+        setRun({
+          projectId: project.id,
+          executionId: result.executionId,
+          status: result.status,
+          startedAt,
+        });
+        toast.success("Project created. Generation started.");
+      } catch (error) {
+        setRun({
+          projectId: project.id,
+          executionId: "pending",
+          status: "failed",
+          startedAt,
+        });
+        toast.error(
+          error instanceof Error ? error.message : "Generation failed",
+        );
+      }
+
       await navigate({
         to: "/projects/$projectId",
         params: { projectId: project.id },
