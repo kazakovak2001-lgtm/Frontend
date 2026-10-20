@@ -111,8 +111,8 @@ browser QA are also required before merge.
 ### Protected production contract (INT-201)
 
 `Production Paired Contract` is a required Frontend CI job. It checks out the
-exact backend baseline declared by `config/integration/paired-release.json`,
-currently `63221e79854be718e75a8582b6a7afe248ecb22a`, builds its backend-only image,
+exact backend candidate declared by `config/integration/paired-release.json`,
+currently `fa868eac4276eda68db61e4c124f8d0f6eb51a74`, builds its backend-only image,
 starts it with `NODE_ENV=production` and runs all 40 integration checks from the
 exact Frontend pull-request head or push commit. `Merge Gate` depends on this
 job, so an authentication, ownership-isolation, realtime, generation, module or
