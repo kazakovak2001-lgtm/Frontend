@@ -5,6 +5,7 @@
 Please do not disclose security issues publicly in issues, PRs, or discussions.
 
 Use GitHub's private vulnerability reporting:
+
 - Open the repository
 - Go to the Security tab
 - Choose "Report a vulnerability"
