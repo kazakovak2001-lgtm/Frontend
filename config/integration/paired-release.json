@@ -9,9 +9,9 @@
   "backend": {
     "repository": "kazakovak2001-lgtm/RobloxAIStudio2",
     "releaseBranch": "release/cutover-1e-candidate",
-    "runtimeSha": "469cd207bf937e5a3bfbbc12f15f92a12bcf955a",
-    "candidateBranch": "integration/mar-remediation-2026-08-18",
-    "candidateSha": "469cd207bf937e5a3bfbbc12f15f92a12bcf955a"
+    "runtimeSha": "669cc1a361241146f22ef3d7ad343aebe29c3034",
+    "candidateBranch": "release/cutover-1e-candidate",
+    "candidateSha": "669cc1a361241146f22ef3d7ad343aebe29c3034"
   },
   "contract": {
     "backendPaths": [
