@@ -142,6 +142,33 @@ function json(method: string, body: unknown): RequestInit {
   return { method, body: JSON.stringify(body) };
 }
 
+/**
+ * MAR-004. The backend's `POST /projects/:id/generate` requires an
+ * `Idempotency-Key` header, so a start whose response was lost and gets
+ * retried returns the run it already started rather than a conflict naming
+ * an execution the caller cannot identify as its own, or a silent second
+ * generation.
+ *
+ * One key per project, held only until the request reaches a definitive
+ * answer. `fetch` rejecting means no HTTP response arrived at all — the
+ * server may or may not have started the run, so a retry must carry the same
+ * key. Any response that DOES arrive, success or a 4xx/5xx, is a definitive
+ * answer: the server has spoken, so a later click is a genuinely new attempt
+ * and earns a fresh key. Module-scoped rather than persisted, matching
+ * `refreshRequest` above: it only needs to survive the in-flight request, not
+ * a page reload, and a reload starting a fresh key is the correct behaviour
+ * for a request nothing is currently waiting on.
+ */
+const pendingGenerationKeys = new Map<string, string>();
+
+function generationIdempotencyKey(projectId: string): string {
+  const existing = pendingGenerationKeys.get(projectId);
+  if (existing) return existing;
+  const key = crypto.randomUUID();
+  pendingGenerationKeys.set(projectId, key);
+  return key;
+}
+
 function asIso(value: unknown): string {
   if (typeof value === "number") return new Date(value).toISOString();
   if (typeof value === "string") return value;
@@ -413,11 +440,31 @@ export const backendApi = {
             : undefined,
         }),
       ),
-    startGeneration: (projectId: string, userId?: string) =>
-      request<{ executionId: string; status: string }>(
-        `/projects/${encodeURIComponent(projectId)}/generate`,
-        json("POST", { userId }),
-      ),
+    startGeneration: async (projectId: string, userId?: string) => {
+      const idempotencyKey = generationIdempotencyKey(projectId);
+      try {
+        const result = await request<{ executionId: string; status: string }>(
+          `/projects/${encodeURIComponent(projectId)}/generate`,
+          {
+            ...json("POST", { userId }),
+            headers: { "Idempotency-Key": idempotencyKey },
+          },
+        );
+        // A definitive success. The next click on this project starts a new
+        // logical attempt and must not replay this one.
+        pendingGenerationKeys.delete(projectId);
+        return result;
+      } catch (error) {
+        // A `BackendApiError` means an HTTP response arrived — the server has
+        // already given its answer, definitive either way, so the key is
+        // retired here too. Anything else (a rejected `fetch`) is the case
+        // this key exists for: no answer arrived, and a retry must reuse it.
+        if (error instanceof BackendApiError) {
+          pendingGenerationKeys.delete(projectId);
+        }
+        throw error;
+      }
+    },
     generationStatus: (projectId: string, executionId: string) =>
       request<JsonRecord>(
         `/projects/${encodeURIComponent(projectId)}/generation/${encodeURIComponent(executionId)}/status`,
@@ -563,15 +610,6 @@ export const backendApi = {
           }),
         ),
     },
-    generationCore: (project: Project) =>
-      request<JsonRecord>(
-        "/generate/game",
-        json("POST", {
-          intent: projectIntent(project),
-          constraints: [`Players: ${project.players}`],
-          projectId: project.id,
-        }),
-      ),
     compile: (project: Project) =>
       request<JsonRecord>(
         "/v1/compile",

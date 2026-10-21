@@ -30,6 +30,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useProjectRealtime } from "@/hooks/useProjectRealtime";
 import { useProjectWorkspaceData } from "@/hooks/useProjectWorkspaceData";
 import { backendApi } from "@/services/backendApi";
+import { createLatestRequestGuard } from "@/services/autonomousSession";
 import { toast } from "sonner";
 
 type WorkspaceSearch = { stage?: WorkspaceStage };
@@ -164,14 +165,19 @@ function ProjectWorkspacePage() {
       return;
     }
 
-    let active = true;
+    // A slow response can resolve after a later poll's response already
+    // landed. Only the most recently *issued* poll may write to `runs` -
+    // otherwise an out-of-order network reply can overwrite a newer status
+    // with a stale one.
+    const guard = createLatestRequestGuard();
     const poll = async () => {
+      const requestId = guard.begin();
       try {
         const execution = await backendApi.ai.generationStatus(
           projectId,
           activeExecutionId,
         );
-        if (!active) return;
+        if (!guard.isCurrent(requestId)) return;
         // A missing status means the backend did not report one - treat it
         // as unknown, never assume the run is still "running".
         const status =
@@ -195,7 +201,7 @@ function ProjectWorkspacePage() {
     void poll();
     const timer = window.setInterval(() => void poll(), 3_000);
     return () => {
-      active = false;
+      guard.invalidate();
       window.clearInterval(timer);
     };
   }, [

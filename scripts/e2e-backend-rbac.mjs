@@ -249,6 +249,19 @@ const replacements = [
   });
 `,
   ],
+  [
+    "cross-user concealment",
+    `        request(\`/projects/\${project.id}\`, {}, 403),
+        request(\`/projects/\${project.id}/history\`, {}, 403),
+        request(\`/chat/\${project.id}/history\`, {}, 403),
+        request(\`/projects/\${project.id}/export\`, {}, 403),
+        request(\`/platform/versions/\${project.id}\`, {}, 403),`,
+    `        request(\`/projects/\${project.id}\`, {}, 404),
+        request(\`/projects/\${project.id}/history\`, {}, 404),
+        request(\`/chat/\${project.id}/history\`, {}, 404),
+        request(\`/projects/\${project.id}/export\`, {}, 404),
+        request(\`/platform/versions/\${project.id}\`, {}, 404),`,
+  ],
 ];
 
 let generated = await readFile(sourceUrl, "utf8");

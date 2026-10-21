@@ -174,8 +174,21 @@ try {
     await page.waitForTimeout(500);
   }
   if (historyBefore.length !== 1) {
+    const failureEvidence = {
+      phase,
+      frontendOrigin,
+      apiUrl,
+      projectId,
+      pageUrl: page.url(),
+      historyCountBefore: historyBefore.length,
+      browserDiagnostics,
+    };
+    await writeFile(
+      `${artifactDir}/generation-start-failure.json`,
+      `${JSON.stringify(failureEvidence, null, 2)}\n`,
+    );
     throw new Error(
-      `Expected one generation record before restart, received ${historyBefore.length}`,
+      `Expected one generation record before restart, received ${historyBefore.length}; browser diagnostics: ${JSON.stringify(browserDiagnostics)}`,
     );
   }
   const executionId = historyBefore[0].pipelineId;
