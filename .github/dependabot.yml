@@ -1,0 +1,30 @@
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    reviewers:
+      - "kazakovak2001-lgtm"
+    assignees:
+      - "kazakovak2001-lgtm"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    groups:
+      production-dependencies:
+        patterns:
+          - "*"
+        dependency-type: "production"
+      dev-dependencies:
+        patterns:
+          - "*"
+        dependency-type: "development"
