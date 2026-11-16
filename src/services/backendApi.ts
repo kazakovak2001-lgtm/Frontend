@@ -1,4 +1,5 @@
 import type { ChatMessage, Project, User } from "@/types";
+import { readDesignSection } from "@/services/projectDesignForm";
 import { runtimeEndpoints } from "@/config/runtime";
 import {
   parseAutonomousSession,
@@ -205,6 +206,8 @@ function toFrontendProject(raw: JsonRecord): Project {
     updatedAt: asIso(raw.updatedAt),
     thumbnailHue: Number(raw.thumbnailHue ?? projectHue(String(raw.id))),
     coverUrl: typeof raw.coverUrl === "string" ? raw.coverUrl : undefined,
+    gameConcept: readDesignSection(raw.gameConcept, "gameConcept"),
+    mapEnvironment: readDesignSection(raw.mapEnvironment, "mapEnvironment"),
   };
 }
 

@@ -18,6 +18,10 @@ import { EmptyState } from "@/components/EmptyState";
 import { PageLoader } from "@/components/PageLoader";
 import { CoverGeneratorDialog } from "@/components/projects/CoverGeneratorDialog";
 import { WorkspaceContextRail } from "@/components/workspace/WorkspaceContextRail";
+import {
+  isGameCreationWindow,
+  type GameCreationWindow,
+} from "@/components/workspace/gameCreationWindow";
 import { WorkspaceStageCanvas } from "@/components/workspace/WorkspaceStageCanvas";
 import {
   WorkspaceWorkflowRail,
@@ -32,12 +36,17 @@ import { useProjectWorkspaceData } from "@/hooks/useProjectWorkspaceData";
 import { backendApi } from "@/services/backendApi";
 import { createLatestRequestGuard } from "@/services/autonomousSession";
 import { toast } from "sonner";
+import type { Project } from "@/types";
 
-type WorkspaceSearch = { stage?: WorkspaceStage };
+type WorkspaceSearch = {
+  stage?: WorkspaceStage;
+  window?: GameCreationWindow;
+};
 
 export const Route = createFileRoute("/projects/$projectId")({
   validateSearch: (search: Record<string, unknown>): WorkspaceSearch => ({
     stage: isWorkspaceStage(search.stage) ? search.stage : undefined,
+    window: isGameCreationWindow(search.window) ? search.window : undefined,
   }),
   head: () => ({ meta: [{ title: "Workspace — Roblox AI Studio" }] }),
   component: ProjectWorkspacePage,
@@ -45,7 +54,7 @@ export const Route = createFileRoute("/projects/$projectId")({
 
 function ProjectWorkspacePage() {
   const { projectId } = Route.useParams();
-  const { stage } = Route.useSearch();
+  const { stage, window: creationWindow } = Route.useSearch();
   const activeStage = stage ?? "define";
   const {
     getProject,
@@ -347,6 +356,17 @@ function ProjectWorkspacePage() {
     }
   };
 
+  const selectWindow = (next: GameCreationWindow) =>
+    navigate({
+      to: "/projects/$projectId",
+      params: { projectId },
+      search: { stage: "define", window: next },
+      replace: true,
+    });
+
+  const saveDesign = (patch: Partial<Project>) =>
+    updateProject(projectId, patch);
+
   const selectStage = (nextStage: WorkspaceStage) =>
     navigate({
       to: "/projects/$projectId",
@@ -499,6 +519,9 @@ function ProjectWorkspacePage() {
             onRefresh={() => void refreshWorkspace()}
             onSaveSettings={() => void saveSettings()}
             onRemoveProject={() => void removeProject()}
+            activeWindow={creationWindow ?? "concept"}
+            onWindowChange={(next) => void selectWindow(next)}
+            onSaveDesign={saveDesign}
           />
         </main>
 

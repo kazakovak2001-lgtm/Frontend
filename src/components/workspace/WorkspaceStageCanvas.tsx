@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GameCreationWindows } from "@/components/workspace/GameCreationWindows";
+import type { GameCreationWindow } from "@/components/workspace/gameCreationWindow";
 import { WorkspaceModules } from "@/components/workspace/WorkspaceModules";
 import { WorkspaceRepairPanel } from "@/components/workspace/WorkspaceRepairPanel";
 import { WorkspaceRunSummary } from "@/components/workspace/WorkspaceRunSummary";
@@ -57,6 +59,9 @@ export function WorkspaceStageCanvas({
   onRefresh,
   onSaveSettings,
   onRemoveProject,
+  activeWindow,
+  onWindowChange,
+  onSaveDesign,
 }: {
   activeStage: WorkspaceStage;
   project: Project;
@@ -79,6 +84,9 @@ export function WorkspaceStageCanvas({
   onRefresh: () => void;
   onSaveSettings: () => void;
   onRemoveProject: () => void;
+  activeWindow: GameCreationWindow;
+  onWindowChange: (next: GameCreationWindow) => void;
+  onSaveDesign: (patch: Partial<Project>) => Promise<void>;
 }) {
   const manifest = workspace?.manifest;
   const readiness = workspace?.readiness;
@@ -117,6 +125,13 @@ export function WorkspaceStageCanvas({
                 <CoverGeneratorDialog project={project} />
               </Card>
             )}
+
+            <GameCreationWindows
+              project={project}
+              activeWindow={activeWindow}
+              onWindowChange={onWindowChange}
+              onSave={onSaveDesign}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[

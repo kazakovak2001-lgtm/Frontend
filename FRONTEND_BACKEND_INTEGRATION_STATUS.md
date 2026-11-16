@@ -53,6 +53,22 @@ Every active button is either a submit control, link, dialog/menu trigger or has
 
 Versioned and transport-level endpoints are deliberately not duplicated as separate UI modules. The frontend uses the stable v1 compile contract, v2 only for DAG/status inspection, and project-scoped Studio routes instead of exposing plugin protocol controls to browser users.
 
+## Game creation inputs (Define stage)
+
+The Define stage hosts two separate input windows, selected with
+`?stage=define&window=concept` (default) or `?stage=define&window=map`:
+
+| Window            | Persisted fields                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Game Concept      | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`) |
+| Map & Environment | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                          |
+
+- Both windows save through `PUT /api/projects/:id` (`backendApi.projects.update`) and never start generation. Only changed fields are sent; list fields are one item per line.
+- A section is a partial update on the backend. A blank field or an empty list clears that field; clearing every field of a section removes it from the next generation. The backend reports a section that is empty or never stated as `null`, which the client reads as "not set".
+- Types mirror the backend contract (`GameConceptConfig`, `MapEnvironmentConfig` in `src/types/index.ts`); limits mirror `server/src/platform/projects/projectDesignInputs.ts` and the backend remains authoritative (its `400` message is shown as-is).
+- Unsaved input in either window is kept when switching windows or when a save fails.
+- Not yet connected: Gameplay Configuration and Monetization Configuration windows.
+
 ## Studio verification contract
 
 The Workspace validates `artifactVerified`, `verificationStatus`, command,
