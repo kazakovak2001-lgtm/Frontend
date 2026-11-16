@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
   buildMapPatch,
   conceptFormFromProject,
   mapFormFromProject,
+  reconcileForm,
   validateConceptForm,
   validateMapForm,
   type FormErrors,
@@ -107,6 +108,37 @@ export function GameCreationWindows({
   );
 }
 
+/**
+ * Form state that follows the project without losing input. The baseline is
+ * the form derived from the project at the last sync, kept apart from the
+ * latest project: when the project refreshes (e.g. generation finished) only
+ * fields the user has not touched adopt the new values, and user-edited
+ * fields are kept. Opening a different project replaces the form entirely.
+ */
+function useProjectForm<T extends { [K in keyof T]: string }>(
+  project: Project,
+  fromProject: (project: Project) => T,
+): [T, (update: (current: T) => T) => void] {
+  const [form, setForm] = useState<T>(() => fromProject(project));
+  const baseline = useRef<T>(form);
+  const projectId = useRef(project.id);
+
+  useEffect(() => {
+    const refreshed = fromProject(project);
+    const previous = baseline.current;
+    baseline.current = refreshed;
+    if (projectId.current !== project.id) {
+      projectId.current = project.id;
+      setForm(refreshed);
+      return;
+    }
+    setForm((current) => reconcileForm(previous, current, refreshed));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
+
+  return [form, setForm];
+}
+
 function useSaveFlow(
   onSave: (patch: Partial<Project>) => Promise<void>,
 ): [SaveState, (patch: Partial<Project>) => Promise<void>, () => void] {
@@ -133,16 +165,13 @@ export function GameConceptWindow({
   project: Project;
   onSave: (patch: Partial<Project>) => Promise<void>;
 }) {
-  const [form, setForm] = useState<GameConceptForm>(() =>
-    conceptFormFromProject(project),
-  );
+  const [form, setForm] = useProjectForm(project, conceptFormFromProject);
   const [errors, setErrors] = useState<FormErrors<GameConceptForm>>({});
   const [state, save, resetState] = useSaveFlow(onSave);
 
-  // Reload only when a different project is opened; a failed save must never
-  // overwrite what the user typed.
+  // Errors and save state reset only when a different project is opened; form
+  // values follow refreshes through useProjectForm without discarding input.
   useEffect(() => {
-    setForm(conceptFormFromProject(project));
     setErrors({});
     resetState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,14 +318,11 @@ export function MapEnvironmentWindow({
   project: Project;
   onSave: (patch: Partial<Project>) => Promise<void>;
 }) {
-  const [form, setForm] = useState<MapEnvironmentForm>(() =>
-    mapFormFromProject(project),
-  );
+  const [form, setForm] = useProjectForm(project, mapFormFromProject);
   const [errors, setErrors] = useState<FormErrors<MapEnvironmentForm>>({});
   const [state, save, resetState] = useSaveFlow(onSave);
 
   useEffect(() => {
-    setForm(mapFormFromProject(project));
     setErrors({});
     resetState();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -65,8 +65,10 @@ The Define stage hosts two separate input windows, selected with
 
 - Both windows save through `PUT /api/projects/:id` (`backendApi.projects.update`) and never start generation. Only changed fields are sent; list fields are one item per line.
 - A section is a partial update on the backend. A blank field or an empty list clears that field; clearing every field of a section removes it from the next generation. The backend reports a section that is empty or never stated as `null`, which the client reads as "not set".
-- Types mirror the backend contract (`GameConceptConfig`, `MapEnvironmentConfig` in `src/types/index.ts`); limits mirror `server/src/platform/projects/projectDesignInputs.ts` and the backend remains authoritative (its `400` message is shown as-is).
+- Types mirror the backend contract (`GameConceptConfig`, `MapEnvironmentConfig` in `src/types/index.ts`); limits mirror `server/src/types/projectDesignInputs.ts` (backend PR #312) and the backend remains authoritative (its `400` message is shown as-is).
 - Unsaved input in either window is kept when switching windows or when a save fails.
+- When the project refreshes while a window is open (for example after generation), fields the user has not edited adopt the refreshed values and fields the user has edited keep the user's input; a save sends only the user's changes.
+- **Backend dependency:** persisting `gameConcept` and `mapEnvironment` requires the backend implementation from `RobloxAIStudio2` PR #312 (`persist game creation design inputs`). An older backend ignores these fields and does not persist them, so the windows load empty after a reload. Compatibility with the PR #312 backend is not verified in an integration environment; the two PRs have been tested separately only.
 - Not yet connected: Gameplay Configuration and Monetization Configuration windows.
 
 ## Studio verification contract

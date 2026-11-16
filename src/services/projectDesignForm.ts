@@ -3,7 +3,7 @@ import type { GameConceptConfig, MapEnvironmentConfig, Project } from "@/types";
 /**
  * Form state, validation and patch building for the Game Concept and
  * Map & Environment windows. Limits mirror the backend contract
- * (server/src/platform/projects/projectDesignInputs.ts); the backend remains
+ * (server/src/types/projectDesignInputs.ts); the backend remains
  * the authority and its 400 errors are surfaced as-is.
  *
  * Genre, target audience and the core idea are NOT duplicated here: the Game
@@ -112,6 +112,28 @@ export function conceptFormFromProject(project: Project): GameConceptForm {
     playerExperience: c.playerExperience ?? "",
     designConstraints: joinLines(c.designConstraints),
   };
+}
+
+/**
+ * Merge a refreshed project into an open form. `baseline` is the form derived
+ * from the project at the previous sync. A field still equal to its baseline
+ * is untouched by the user and adopts the refreshed value; a field the user
+ * changed keeps the user's value, so neither a refresh nor a later save can
+ * silently revert the other. Returns `current` itself when nothing changes.
+ */
+export function reconcileForm<T extends { [K in keyof T]: string }>(
+  baseline: T,
+  current: T,
+  refreshed: T,
+): T {
+  let out: T | null = null;
+  for (const key of Object.keys(current) as (keyof T)[]) {
+    if (current[key] === baseline[key] && refreshed[key] !== current[key]) {
+      out ??= { ...current };
+      out[key] = refreshed[key];
+    }
+  }
+  return out ?? current;
 }
 
 export type FormErrors<T> = Partial<Record<keyof T, string>>;

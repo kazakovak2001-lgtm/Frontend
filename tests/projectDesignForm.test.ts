@@ -6,6 +6,7 @@ import {
   conceptFormFromProject,
   mapFormFromProject,
   readDesignSection,
+  reconcileForm,
   validateConceptForm,
   validateMapForm,
 } from "../src/services/projectDesignForm.ts";
@@ -100,5 +101,90 @@ test("readDesignSection is defensive about backend values", () => {
       "gameConcept",
     ),
     { vision: "v", coreMechanics: ["a"] },
+  );
+});
+
+// ── Project refresh while a form is open (CodeRabbit PR #84, MAJOR) ───────
+
+test("stale form without reconcile would overwrite a refreshed value", () => {
+  // Documents the original defect: the form is compared with the latest
+  // project, so an untouched field still holding the old value looks edited.
+  const opened = { ...base, gameConcept: { vision: "V" } };
+  const form = { ...conceptFormFromProject(opened), vision: "V edited" };
+  const refreshed = {
+    ...opened,
+    gameConcept: { vision: "V", gameplayLoop: "Loop from generation" },
+  };
+  assert.deepEqual(buildConceptPatch(refreshed, form), {
+    gameConcept: { vision: "V edited", gameplayLoop: "" },
+  });
+});
+
+test("concept: refresh adopts untouched fields, save sends only the user edit", () => {
+  const opened = { ...base, gameConcept: { vision: "V" } };
+  const baseline = conceptFormFromProject(opened);
+  const edited = { ...baseline, vision: "V edited" };
+  const refreshed = {
+    ...opened,
+    description: "Idea from generation",
+    gameConcept: {
+      vision: "V",
+      gameplayLoop: "Loop from generation",
+      coreMechanics: ["jump"],
+    },
+  };
+  const merged = reconcileForm(
+    baseline,
+    edited,
+    conceptFormFromProject(refreshed),
+  );
+  assert.equal(merged.vision, "V edited");
+  assert.equal(merged.gameplayLoop, "Loop from generation");
+  assert.equal(merged.coreMechanics, "jump");
+  assert.equal(merged.description, "Idea from generation");
+  assert.deepEqual(buildConceptPatch(refreshed, merged), {
+    gameConcept: { vision: "V edited" },
+  });
+});
+
+test("concept: refresh with no user edits is not dirty", () => {
+  const opened = { ...base };
+  const baseline = conceptFormFromProject(opened);
+  const refreshed = { ...opened, gameConcept: { gameplayLoop: "L" } };
+  const merged = reconcileForm(
+    baseline,
+    baseline,
+    conceptFormFromProject(refreshed),
+  );
+  assert.equal(buildConceptPatch(refreshed, merged), null);
+});
+
+test("map: refresh adopts untouched fields, save sends only the user edit", () => {
+  const opened = { ...base, mapEnvironment: { worldTheme: "Desert" } };
+  const baseline = mapFormFromProject(opened);
+  const edited = { ...baseline, atmosphere: "misty" };
+  const refreshed = {
+    ...opened,
+    mapEnvironment: { worldTheme: "Ice", mainLocations: ["Hub"] },
+  };
+  const merged = reconcileForm(baseline, edited, mapFormFromProject(refreshed));
+  assert.equal(merged.worldTheme, "Ice");
+  assert.equal(merged.mainLocations, "Hub");
+  assert.equal(merged.atmosphere, "misty");
+  assert.deepEqual(buildMapPatch(refreshed, merged), {
+    mapEnvironment: { atmosphere: "misty" },
+  });
+});
+
+test("reconcile keeps a user-edited field and returns same object if unchanged", () => {
+  const opened = { ...base, mapEnvironment: { worldTheme: "Desert" } };
+  const baseline = mapFormFromProject(opened);
+  const edited = { ...baseline, worldTheme: "Mine" };
+  const refreshed = { ...opened, mapEnvironment: { worldTheme: "Ice" } };
+  const merged = reconcileForm(baseline, edited, mapFormFromProject(refreshed));
+  assert.equal(merged.worldTheme, "Mine");
+  assert.equal(
+    reconcileForm(baseline, baseline, mapFormFromProject(opened)),
+    baseline,
   );
 });
