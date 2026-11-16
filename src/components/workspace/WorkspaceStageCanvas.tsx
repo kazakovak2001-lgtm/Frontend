@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GeneratedOutputPanel } from "@/components/workspace/GeneratedOutputPanel";
 import { GameCreationWindows } from "@/components/workspace/GameCreationWindows";
 import type { GameCreationWindow } from "@/components/workspace/gameCreationWindow";
 import { WorkspaceModules } from "@/components/workspace/WorkspaceModules";
@@ -222,6 +223,18 @@ export function WorkspaceStageCanvas({
           progress={progress}
           currentStep={currentStep}
           latestExecution={workspace?.latestExecution}
+        />
+
+        <GeneratedOutputPanel
+          projectId={project.id}
+          refreshKey={`${workspace?.latestExecution?.id ?? "none"}:${
+            workspace?.latestExecution?.status ?? activeRunStatus ?? ""
+          }`}
+          aiMode={
+            typeof workspace?.latestExecution?.ai_mode === "string"
+              ? workspace.latestExecution.ai_mode
+              : undefined
+          }
         />
 
         <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
