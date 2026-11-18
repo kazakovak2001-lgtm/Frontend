@@ -53,6 +53,12 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci
+      - name: Diagnose gameplay documentation formatting
+        run: |
+          for file in FRONTEND_BACKEND_INTEGRATION_STATUS.md scripts/integration/restart-recovery-browser.mjs src/components/workspace/GameCreationWindows.tsx src/services/projectDesignForm.ts; do
+            node node_modules/prettier/bin/prettier.cjs "$file" > /tmp/formatted
+            diff -u "$file" /tmp/formatted || true
+          done
       - run: npm run format:check
 
   workspace-tests:
