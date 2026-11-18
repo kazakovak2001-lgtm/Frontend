@@ -430,6 +430,66 @@ async function main() {
     assert(opened.id === project.id, "Project detail returned another project");
   });
 
+  await check("persist and reload Game Concept and Map & Environment", async () => {
+    const initial = {
+      gameConcept: {
+        vision: "A cooperative floating-island adventure",
+        gameplayLoop: "Explore, collect, build, defend",
+        coreMechanics: ["glide", "craft", "team defense"],
+        playerExperience: "Cooperative discovery",
+        designConstraints: ["Roblox mobile support"],
+      },
+      mapEnvironment: {
+        worldTheme: "Sky archipelago",
+        environmentType: "Floating islands",
+        mapStructure: "Central hub with branching islands",
+        mainLocations: ["Cloud Harbor", "Ancient Observatory"],
+        atmosphere: "Bright, mysterious",
+        constraints: ["Keep traversal readable on mobile"],
+      },
+    };
+    const saved = await request(
+      `/projects/${project.id}`,
+      json("PUT", initial),
+    );
+    assert(
+      saved.gameConcept?.vision === initial.gameConcept.vision &&
+        saved.gameConcept?.coreMechanics?.join("|") ===
+          initial.gameConcept.coreMechanics.join("|") &&
+        saved.mapEnvironment?.worldTheme === initial.mapEnvironment.worldTheme &&
+        saved.mapEnvironment?.mainLocations?.join("|") ===
+          initial.mapEnvironment.mainLocations.join("|"),
+      "Project update did not return both design sections",
+    );
+
+    // A partial edit must merge with the stored section, not erase untouched fields.
+    const partial = await request(
+      `/projects/${project.id}`,
+      json("PUT", {
+        gameConcept: { vision: "A persistent cooperative sky adventure" },
+        mapEnvironment: { atmosphere: "Storm-lit and mysterious" },
+      }),
+    );
+    assert(
+      partial.gameConcept?.vision === "A persistent cooperative sky adventure" &&
+        partial.gameConcept?.gameplayLoop === initial.gameConcept.gameplayLoop &&
+        partial.mapEnvironment?.atmosphere === "Storm-lit and mysterious" &&
+        partial.mapEnvironment?.worldTheme === initial.mapEnvironment.worldTheme &&
+        partial.mapEnvironment?.mainLocations?.join("|") ===
+          initial.mapEnvironment.mainLocations.join("|"),
+      "Partial design update overwrote untouched fields",
+    );
+
+    const reloaded = await request(`/projects/${project.id}`);
+    assert(
+      reloaded.gameConcept?.vision === partial.gameConcept.vision &&
+        reloaded.gameConcept?.gameplayLoop === initial.gameConcept.gameplayLoop &&
+        reloaded.mapEnvironment?.atmosphere === partial.mapEnvironment.atmosphere &&
+        reloaded.mapEnvironment?.worldTheme === initial.mapEnvironment.worldTheme,
+      "Design inputs did not survive a fresh project read",
+    );
+  });
+
   const userMessage = await check("create persistent chat conversation", () =>
     request(
       "/chat/message",
