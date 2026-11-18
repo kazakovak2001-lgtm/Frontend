@@ -196,6 +196,70 @@ try {
     throw new Error("Generation history did not expose a pipeline id");
   }
 
+  // Exercise both real workspace forms against the PostgreSQL-backed API
+  // before restarting the backend, then verify the values survive recovery.
+  phase = "design-inputs";
+  await page.goto(
+    `${frontendOrigin}/projects/${encodeURIComponent(projectId)}?stage=define&window=concept`,
+    { waitUntil: "networkidle" },
+  );
+  await page.getByLabel("Vision").fill("A cooperative sky-island adventure");
+  await page
+    .getByLabel("Main gameplay loop")
+    .fill("Explore, collect, craft, defend");
+  await page
+    .getByLabel("Core mechanics (one per line)")
+    .fill("glide\ncraft\nteam defense");
+  await page
+    .getByLabel("Intended player experience")
+    .fill("Cooperative discovery and progression");
+  await page
+    .getByLabel("Important design constraints (one per line)")
+    .fill("Mobile-first traversal");
+  await page.getByRole("button", { name: "Save Game Concept" }).click();
+  await page
+    .locator("#game-creation-panel-concept")
+    .getByText("Saved.", { exact: true })
+    .waitFor();
+
+  await page.getByRole("tab", { name: "Map & Environment" }).click();
+  await page.getByLabel("World theme").fill("Sky archipelago");
+  await page.getByLabel("Environment type").fill("Floating islands");
+  await page
+    .getByLabel("Map structure")
+    .fill("Central hub with branching islands");
+  await page
+    .getByLabel("Main locations (one per line)")
+    .fill("Cloud Harbor\nAncient Observatory");
+  await page
+    .getByLabel("Atmosphere and visual direction")
+    .fill("Bright, mysterious, storm-lit");
+  await page
+    .getByLabel("Gameplay and environmental constraints (one per line)")
+    .fill("Readable navigation on mobile");
+  await page.getByRole("button", { name: "Save Map & Environment" }).click();
+  await page
+    .locator("#game-creation-panel-map")
+    .getByText("Saved.", { exact: true })
+    .waitFor();
+
+  const designBefore = await api(`/projects/${encodeURIComponent(projectId)}`);
+  if (
+    designBefore.gameConcept?.vision !== "A cooperative sky-island adventure" ||
+    designBefore.gameConcept?.coreMechanics?.join("|") !==
+      "glide|craft|team defense" ||
+    designBefore.mapEnvironment?.worldTheme !== "Sky archipelago" ||
+    designBefore.mapEnvironment?.mainLocations?.join("|") !==
+      "Cloud Harbor|Ancient Observatory"
+  ) {
+    throw new Error(
+      `Workspace forms did not persist both design sections: ${JSON.stringify({
+        gameConcept: designBefore.gameConcept,
+        mapEnvironment: designBefore.mapEnvironment,
+      })}`,
+    );
+  }
+
   await page.screenshot({
     path: `${artifactDir}/before-restart.png`,
     fullPage: true,
@@ -236,6 +300,46 @@ try {
     throw new Error(
       "Recovered execution identity does not match the pre-restart lifecycle",
     );
+  }
+
+  const designAfter = await api(`/projects/${encodeURIComponent(projectId)}`);
+  if (
+    designAfter.gameConcept?.vision !== "A cooperative sky-island adventure" ||
+    designAfter.gameConcept?.coreMechanics?.join("|") !==
+      "glide|craft|team defense" ||
+    designAfter.mapEnvironment?.worldTheme !== "Sky archipelago" ||
+    designAfter.mapEnvironment?.mainLocations?.join("|") !==
+      "Cloud Harbor|Ancient Observatory"
+  ) {
+    throw new Error(
+      `Post-restart design inputs changed: ${JSON.stringify({
+        gameConcept: designAfter.gameConcept,
+        mapEnvironment: designAfter.mapEnvironment,
+      })}`,
+    );
+  }
+
+  // Confirm the recovered values are rendered back into both browser forms.
+  await page.goto(
+    `${frontendOrigin}/projects/${encodeURIComponent(projectId)}?stage=define&window=concept`,
+    { waitUntil: "networkidle" },
+  );
+  if (
+    (await page.getByLabel("Vision").inputValue()) !==
+      "A cooperative sky-island adventure" ||
+    (await page.getByLabel("Core mechanics (one per line)").inputValue()) !==
+      "glide\ncraft\nteam defense"
+  ) {
+    throw new Error("Game Concept form did not restore its saved values");
+  }
+
+  await page.getByRole("tab", { name: "Map & Environment" }).click();
+  if (
+    (await page.getByLabel("World theme").inputValue()) !== "Sky archipelago" ||
+    (await page.getByLabel("Main locations (one per line)").inputValue()) !==
+      "Cloud Harbor\nAncient Observatory"
+  ) {
+    throw new Error("Map & Environment form did not restore its saved values");
   }
 
   const unexpectedDiagnostics = browserDiagnostics.filter(

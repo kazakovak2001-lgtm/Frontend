@@ -99,3 +99,18 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+
+      - name: Stage SARIF for security triage
+        if: always()
+        run: |
+          mkdir -p artifacts/codeql
+          cp ../results/*.sarif artifacts/codeql/
+
+      - name: Preserve SARIF for security triage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: artifacts/codeql/*.sarif
+          if-no-files-found: warn
+          retention-days: 3

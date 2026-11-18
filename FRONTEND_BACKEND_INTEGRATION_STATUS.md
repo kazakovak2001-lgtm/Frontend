@@ -9,7 +9,7 @@ All browser calls pass through `src/services/backendApi.ts`. It normalizes API e
 ## Current exact runtime pair
 
 - Frontend runtime baseline: `53eddd8b52ced75a6cd65328ab7e9eec146fd4a7`
-- Backend runtime baseline: `669cc1a361241146f22ef3d7ad343aebe29c3034` (`release/cutover-1e-candidate`)
+- Backend runtime baseline: `1c8976742e39099ab569fc273a200aca5f5723ba` (`release/cutover-1e-candidate`)
 - Single pin authority: `config/integration/paired-release.json`
 
 Production, clean-clone, and PostgreSQL restart workflows resolve the backend
@@ -52,6 +52,24 @@ Every active button is either a submit control, link, dialog/menu trigger or has
 | Roblox Studio status and sync              | `/api/projects/:id/studio/*`                                           |
 
 Versioned and transport-level endpoints are deliberately not duplicated as separate UI modules. The frontend uses the stable v1 compile contract, v2 only for DAG/status inspection, and project-scoped Studio routes instead of exposing plugin protocol controls to browser users.
+
+## Game creation inputs (Define stage)
+
+The Define stage hosts two separate input windows, selected with
+`?stage=define&window=concept` (default) or `?stage=define&window=map`:
+
+| Window            | Persisted fields                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Game Concept      | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`) |
+| Map & Environment | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                          |
+
+- Both windows save through `PUT /api/projects/:id` (`backendApi.projects.update`) and never start generation. Only changed fields are sent; list fields are one item per line.
+- A section is a partial update on the backend. A blank field or an empty list clears that field; clearing every field of a section removes it from the next generation. The backend reports a section that is empty or never stated as `null`, which the client reads as "not set".
+- Types mirror the backend contract (`GameConceptConfig`, `MapEnvironmentConfig` in `src/types/index.ts`); limits mirror `server/src/types/projectDesignInputs.ts` (backend PR #312) and the backend remains authoritative (its `400` message is shown as-is).
+- Unsaved input in either window is kept when switching windows or when a save fails.
+- When the project refreshes while a window is open (for example after generation), fields the user has not edited adopt the refreshed values and fields the user has edited keep the user's input; a save sends only the user's changes.
+- **Backend dependency:** persisting `gameConcept` and `mapEnvironment` requires the backend implementation from `RobloxAIStudio2` PR #312 (`persist game creation design inputs`). An older backend ignores these fields and does not persist them, so the windows load empty after a reload. Compatibility with the PR #312 backend is not verified in an integration environment; the two PRs have been tested separately only.
+- Not yet connected: Gameplay Configuration and Monetization Configuration windows.
 
 ## Studio verification contract
 
@@ -101,7 +119,7 @@ npm run build
 
 The native suite contains 12 checks, including verified, pending, failed,
 malformed and disconnected Studio responses plus Workspace blocker/next-action
-behavior. The integration suite contains 40 checks. It covers authenticated
+behavior. The integration suite contains 41 checks. It covers authenticated
 REST and Socket.IO behavior, all user-facing module groups, full project
 lifecycle, persistent chat, guarded Studio sync, explicit disconnected
 verification state, cross-user project isolation, export, settings, deletion,

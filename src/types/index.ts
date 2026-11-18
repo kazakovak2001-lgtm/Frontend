@@ -15,6 +15,25 @@ export type GameGenre =
 
 export type Difficulty = "Easy" | "Medium" | "Hard" | "Expert";
 
+/** Mirrors backend `GameConceptConfig` (server/src/platform/projects/projectDesignInputs.ts). */
+export interface GameConceptConfig {
+  vision?: string;
+  gameplayLoop?: string;
+  coreMechanics?: string[];
+  playerExperience?: string;
+  designConstraints?: string[];
+}
+
+/** Mirrors backend `MapEnvironmentConfig`. */
+export interface MapEnvironmentConfig {
+  worldTheme?: string;
+  environmentType?: string;
+  mapStructure?: string;
+  mainLocations?: string[];
+  atmosphere?: string;
+  constraints?: string[];
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -30,6 +49,9 @@ export interface Project {
   updatedAt: string;
   thumbnailHue: number;
   coverUrl?: string;
+  /** Absent when the user has stated nothing (backend returns null). */
+  gameConcept?: GameConceptConfig;
+  mapEnvironment?: MapEnvironmentConfig;
 }
 
 export interface User {

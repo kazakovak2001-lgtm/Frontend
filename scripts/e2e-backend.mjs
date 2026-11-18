@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { io } from "socket.io-client";
 
-const EXPECTED_CHECK_COUNT = 40;
+const EXPECTED_CHECK_COUNT = 41;
 const apiBase = (
   process.env.E2E_API_URL ?? "http://127.0.0.1:5000/api"
 ).replace(/\/$/, "");
@@ -429,6 +429,103 @@ async function main() {
     const opened = await request(`/projects/${project.id}`);
     assert(opened.id === project.id, "Project detail returned another project");
   });
+
+  await check(
+    "persist and reload Game Concept and Map & Environment",
+    async () => {
+      const initial = {
+        gameConcept: {
+          vision: "A cooperative floating-island adventure",
+          gameplayLoop: "Explore, collect, build, defend",
+          coreMechanics: ["glide", "craft", "team defense"],
+          playerExperience: "Cooperative discovery",
+          designConstraints: ["Roblox mobile support"],
+        },
+        mapEnvironment: {
+          worldTheme: "Sky archipelago",
+          environmentType: "Floating islands",
+          mapStructure: "Central hub with branching islands",
+          mainLocations: ["Cloud Harbor", "Ancient Observatory"],
+          atmosphere: "Bright, mysterious",
+          constraints: ["Keep traversal readable on mobile"],
+        },
+      };
+      const saved = await request(
+        `/projects/${project.id}`,
+        json("PUT", initial),
+      );
+      assert(
+        saved.gameConcept?.vision === initial.gameConcept.vision,
+        "Game Concept vision was not saved",
+      );
+      assert(
+        saved.gameConcept?.coreMechanics?.join("|") ===
+          initial.gameConcept.coreMechanics.join("|"),
+        "Game Concept mechanics were not saved",
+      );
+      assert(
+        saved.mapEnvironment?.worldTheme === initial.mapEnvironment.worldTheme,
+        "Map world theme was not saved",
+      );
+      assert(
+        saved.mapEnvironment?.mainLocations?.join("|") ===
+          initial.mapEnvironment.mainLocations.join("|"),
+        "Map locations were not saved",
+      );
+
+      // Partial edits must preserve fields the user did not change.
+      const partial = await request(
+        `/projects/${project.id}`,
+        json("PUT", {
+          gameConcept: { vision: "A persistent cooperative sky adventure" },
+          mapEnvironment: { atmosphere: "Storm-lit and mysterious" },
+        }),
+      );
+      assert(
+        partial.gameConcept?.vision ===
+          "A persistent cooperative sky adventure",
+        "Partial Game Concept edit was not saved",
+      );
+      assert(
+        partial.gameConcept?.gameplayLoop === initial.gameConcept.gameplayLoop,
+        "Partial Game Concept edit erased the gameplay loop",
+      );
+      assert(
+        partial.mapEnvironment?.atmosphere === "Storm-lit and mysterious",
+        "Partial Map & Environment edit was not saved",
+      );
+      assert(
+        partial.mapEnvironment?.worldTheme ===
+          initial.mapEnvironment.worldTheme,
+        "Partial Map & Environment edit erased the world theme",
+      );
+      assert(
+        partial.mapEnvironment?.mainLocations?.join("|") ===
+          initial.mapEnvironment.mainLocations.join("|"),
+        "Partial Map & Environment edit erased the locations",
+      );
+
+      const reloaded = await request(`/projects/${project.id}`);
+      assert(
+        reloaded.gameConcept?.vision === partial.gameConcept.vision,
+        "Game Concept vision did not survive a fresh project read",
+      );
+      assert(
+        reloaded.gameConcept?.gameplayLoop === initial.gameConcept.gameplayLoop,
+        "Game Concept gameplay loop did not survive a fresh project read",
+      );
+      assert(
+        reloaded.mapEnvironment?.atmosphere ===
+          partial.mapEnvironment.atmosphere,
+        "Map atmosphere did not survive a fresh project read",
+      );
+      assert(
+        reloaded.mapEnvironment?.worldTheme ===
+          initial.mapEnvironment.worldTheme,
+        "Map world theme did not survive a fresh project read",
+      );
+    },
+  );
 
   const userMessage = await check("create persistent chat conversation", () =>
     request(
@@ -1166,7 +1263,7 @@ export async function run() {
 // Only run the suite when this file is executed directly (`node
 // e2e-backend.mjs`, or the RBAC-generated copy spawned the same way).
 // Importing it — as the regression tests for the exports above do — must
-// not trigger a live 40-check run against a backend that may not exist.
+// not trigger a live 41-check run against a backend that may not exist.
 const isDirectExecution =
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(process.argv[1]).href;
