@@ -430,7 +430,6 @@ async function main() {
     assert(opened.id === project.id, "Project detail returned another project");
   });
 
-  // prettier-ignore
   await check(
     "persist and reload Game Concept and Map & Environment",
     async () => {
@@ -465,8 +464,7 @@ async function main() {
         "Game Concept mechanics were not saved",
       );
       assert(
-        saved.mapEnvironment?.worldTheme ===
-          initial.mapEnvironment.worldTheme,
+        saved.mapEnvironment?.worldTheme === initial.mapEnvironment.worldTheme,
         "Map world theme was not saved",
       );
       assert(
@@ -489,8 +487,7 @@ async function main() {
         "Partial Game Concept edit was not saved",
       );
       assert(
-        partial.gameConcept?.gameplayLoop ===
-          initial.gameConcept.gameplayLoop,
+        partial.gameConcept?.gameplayLoop === initial.gameConcept.gameplayLoop,
         "Partial Game Concept edit erased the gameplay loop",
       );
       assert(
@@ -514,8 +511,7 @@ async function main() {
         "Game Concept vision did not survive a fresh project read",
       );
       assert(
-        reloaded.gameConcept?.gameplayLoop ===
-          initial.gameConcept.gameplayLoop,
+        reloaded.gameConcept?.gameplayLoop === initial.gameConcept.gameplayLoop,
         "Game Concept gameplay loop did not survive a fresh project read",
       );
       assert(
