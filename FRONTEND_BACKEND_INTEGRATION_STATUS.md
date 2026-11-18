@@ -9,7 +9,7 @@ All browser calls pass through `src/services/backendApi.ts`. It normalizes API e
 ## Current exact runtime pair
 
 - Frontend runtime baseline: `53eddd8b52ced75a6cd65328ab7e9eec146fd4a7`
-- Backend runtime baseline: `669cc1a361241146f22ef3d7ad343aebe29c3034` (`release/cutover-1e-candidate`)
+- Backend runtime baseline: `1c8976742e39099ab569fc273a200aca5f5723ba` (`release/cutover-1e-candidate`)
 - Single pin authority: `config/integration/paired-release.json`
 
 Production, clean-clone, and PostgreSQL restart workflows resolve the backend
