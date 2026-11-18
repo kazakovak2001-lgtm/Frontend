@@ -301,6 +301,51 @@ try {
     );
   }
 
+  const designAfter = await api(
+    `/projects/${encodeURIComponent(projectId)}`,
+  );
+  if (
+    designAfter.gameConcept?.vision !==
+      "A cooperative sky-island adventure" ||
+    designAfter.gameConcept?.coreMechanics?.join("|") !==
+      "glide|craft|team defense" ||
+    designAfter.mapEnvironment?.worldTheme !== "Sky archipelago" ||
+    designAfter.mapEnvironment?.mainLocations?.join("|") !==
+      "Cloud Harbor|Ancient Observatory"
+  ) {
+    throw new Error(
+      `Post-restart design inputs changed: ${JSON.stringify({
+        gameConcept: designAfter.gameConcept,
+        mapEnvironment: designAfter.mapEnvironment,
+      })}`,
+    );
+  }
+
+  // Confirm the recovered values are rendered back into both browser forms.
+  await page.goto(
+    `${frontendOrigin}/projects/${encodeURIComponent(projectId)}?stage=define&window=concept`,
+    { waitUntil: "networkidle" },
+  );
+  if (
+    (await page.getByLabel("Vision").inputValue()) !==
+      "A cooperative sky-island adventure" ||
+    (await page.getByLabel("Core mechanics (one per line)").inputValue()) !==
+      "glide\ncraft\nteam defense"
+  ) {
+    throw new Error("Game Concept form did not restore its saved values");
+  }
+
+  await page
+    .getByRole("tab", { name: "Map & Environment" })
+    .click();
+  if (
+    (await page.getByLabel("World theme").inputValue()) !== "Sky archipelago" ||
+    (await page.getByLabel("Main locations (one per line)").inputValue()) !==
+      "Cloud Harbor\nAncient Observatory"
+  ) {
+    throw new Error("Map & Environment form did not restore its saved values");
+  }
+
   const unexpectedDiagnostics = browserDiagnostics.filter(
     (diagnostic) => !isExpectedDiagnostic(diagnostic),
   );
