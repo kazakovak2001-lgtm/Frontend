@@ -261,7 +261,9 @@ try {
   await page
     .getByLabel("Economy or scoring rules")
     .fill("Earn stars for discoveries");
-  await page.getByRole("button", { name: "Save Gameplay Configuration" }).click();
+  await page
+    .getByRole("button", { name: "Save Gameplay Configuration" })
+    .click();
   await page
     .locator("#game-creation-panel-gameplay")
     .getByText("Saved.", { exact: true })
@@ -397,12 +399,15 @@ try {
       "Unlock islands by completing trials" ||
     (await page.getByLabel("Difficulty scaling").inputValue()) !==
       "Increase challenge per island" ||
-    (await page.getByLabel("Interaction systems (one per line)").inputValue()) !==
-      "Crafting\nTrading" ||
+    (await page
+      .getByLabel("Interaction systems (one per line)")
+      .inputValue()) !== "Crafting\nTrading" ||
     (await page.getByLabel("Economy or scoring rules").inputValue()) !==
       "Earn stars for discoveries"
   ) {
-    throw new Error("Gameplay Configuration form did not restore its saved values");
+    throw new Error(
+      "Gameplay Configuration form did not restore its saved values",
+    );
   }
 
   // Confirm the recovered values are rendered back into both browser forms.
