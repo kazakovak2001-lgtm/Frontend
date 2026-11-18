@@ -196,6 +196,69 @@ try {
     throw new Error("Generation history did not expose a pipeline id");
   }
 
+  // Exercise both real workspace forms against the PostgreSQL-backed API
+  // before restarting the backend, then verify the values survive recovery.
+  phase = "design-inputs";
+  await page.goto(
+    `${frontendOrigin}/projects/${encodeURIComponent(projectId)}?stage=define&window=concept`,
+    { waitUntil: "networkidle" },
+  );
+  await page.getByLabel("Vision").fill("A cooperative sky-island adventure");
+  await page
+    .getByLabel("Main gameplay loop")
+    .fill("Explore, collect, craft, defend");
+  await page
+    .getByLabel("Core mechanics (one per line)")
+    .fill("glide\ncraft\nteam defense");
+  await page
+    .getByLabel("Intended player experience")
+    .fill("Cooperative discovery and progression");
+  await page
+    .getByLabel("Important design constraints (one per line)")
+    .fill("Mobile-first traversal");
+  await page.getByRole("button", { name: "Save Game Concept" }).click();
+  await page.getByText("Saved.", { exact: true }).waitFor();
+
+  await page
+    .getByRole("tab", { name: "Map & Environment" })
+    .click();
+  await page.getByLabel("World theme").fill("Sky archipelago");
+  await page.getByLabel("Environment type").fill("Floating islands");
+  await page
+    .getByLabel("Map structure")
+    .fill("Central hub with branching islands");
+  await page
+    .getByLabel("Main locations (one per line)")
+    .fill("Cloud Harbor\nAncient Observatory");
+  await page
+    .getByLabel("Atmosphere and visual direction")
+    .fill("Bright, mysterious, storm-lit");
+  await page
+    .getByLabel("Gameplay and environmental constraints (one per line)")
+    .fill("Readable navigation on mobile");
+  await page.getByRole("button", { name: "Save Map & Environment" }).click();
+  await page.getByText("Saved.", { exact: true }).waitFor();
+
+  const designBefore = await api(
+    `/projects/${encodeURIComponent(projectId)}`,
+  );
+  if (
+    designBefore.gameConcept?.vision !==
+      "A cooperative sky-island adventure" ||
+    designBefore.gameConcept?.coreMechanics?.join("|") !==
+      "glide|craft|team defense" ||
+    designBefore.mapEnvironment?.worldTheme !== "Sky archipelago" ||
+    designBefore.mapEnvironment?.mainLocations?.join("|") !==
+      "Cloud Harbor|Ancient Observatory"
+  ) {
+    throw new Error(
+      `Workspace forms did not persist both design sections: ${JSON.stringify({
+        gameConcept: designBefore.gameConcept,
+        mapEnvironment: designBefore.mapEnvironment,
+      })}`,
+    );
+  }
+
   await page.screenshot({
     path: `${artifactDir}/before-restart.png`,
     fullPage: true,
