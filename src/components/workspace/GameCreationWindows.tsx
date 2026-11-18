@@ -450,9 +450,9 @@ export function GameplayConfigurationWindow({
     project,
     gameplayConfigurationFormFromProject,
   );
-  const [errors, setErrors] = useState<
-    FormErrors<GameplayConfigurationForm>
-  >({});
+  const [errors, setErrors] = useState<FormErrors<GameplayConfigurationForm>>(
+    {},
+  );
   const [state, save, resetState] = useSaveFlow(onSave);
 
   useEffect(() => {
@@ -496,11 +496,7 @@ export function GameplayConfigurationWindow({
         />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          id="gp-win"
-          label="Win condition"
-          error={errors.winCondition}
-        >
+        <Field id="gp-win" label="Win condition" error={errors.winCondition}>
           <Textarea
             id="gp-win"
             rows={3}
@@ -508,11 +504,7 @@ export function GameplayConfigurationWindow({
             onChange={(e) => set("winCondition", e.target.value)}
           />
         </Field>
-        <Field
-          id="gp-lose"
-          label="Lose condition"
-          error={errors.loseCondition}
-        >
+        <Field id="gp-lose" label="Lose condition" error={errors.loseCondition}>
           <Textarea
             id="gp-lose"
             rows={3}
