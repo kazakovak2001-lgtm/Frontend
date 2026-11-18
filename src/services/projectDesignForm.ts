@@ -1,9 +1,14 @@
-import type { GameConceptConfig, MapEnvironmentConfig, Project } from "@/types";
+import type {
+  GameConceptConfig,
+  GameplayConfigurationConfig,
+  MapEnvironmentConfig,
+  Project,
+} from "@/types";
 
 /**
- * Form state, validation and patch building for the Game Concept and
- * Map & Environment windows. Limits mirror the backend contract
- * (server/src/types/projectDesignInputs.ts); the backend remains
+ * Form state, validation and patch building for the Game Concept,
+ * Map & Environment, and Gameplay Configuration windows. Limits mirror the
+ * backend contract (server/src/types/projectDesignInputs.ts); the backend remains
  * the authority and its 400 errors are surfaced as-is.
  *
  * Genre, target audience and the core idea are NOT duplicated here: the Game
@@ -24,9 +29,18 @@ export const DESIGN_LIMITS = {
   atmosphere: 1000,
   mainLocations: { items: 20, length: 120 },
   constraints: { items: 20, length: 200 },
+  winCondition: 500,
+  loseCondition: 500,
+  progressionModel: 1000,
+  difficultyScaling: 500,
+  interactionSystems: { items: 20, length: 120 },
+  economyOrScoring: 500,
 } as const;
 
-export type DesignSection = "gameConcept" | "mapEnvironment";
+export type DesignSection =
+  | "gameConcept"
+  | "mapEnvironment"
+  | "gameplayConfiguration";
 
 const TEXT_KEYS: Record<DesignSection, readonly string[]> = {
   gameConcept: ["vision", "gameplayLoop", "playerExperience"],
@@ -36,10 +50,19 @@ const TEXT_KEYS: Record<DesignSection, readonly string[]> = {
     "mapStructure",
     "atmosphere",
   ],
+  gameplayConfiguration: [
+    "loop",
+    "winCondition",
+    "loseCondition",
+    "progressionModel",
+    "difficultyScaling",
+    "economyOrScoring",
+  ],
 };
 const LIST_KEYS: Record<DesignSection, readonly string[]> = {
   gameConcept: ["coreMechanics", "designConstraints"],
   mapEnvironment: ["mainLocations", "constraints"],
+  gameplayConfiguration: ["interactionSystems"],
 };
 
 const hasOwn = (o: object, k: string) =>
@@ -56,8 +79,16 @@ export function readDesignSection(
 ): MapEnvironmentConfig | undefined;
 export function readDesignSection(
   raw: unknown,
+  section: "gameplayConfiguration",
+): GameplayConfigurationConfig | undefined;
+export function readDesignSection(
+  raw: unknown,
   section: DesignSection,
-): GameConceptConfig | MapEnvironmentConfig | undefined {
+):
+  | GameConceptConfig
+  | MapEnvironmentConfig
+  | GameplayConfigurationConfig
+  | undefined {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const input = raw as Record<string, unknown>;
   const out: Record<string, string | string[]> = {};
@@ -343,4 +374,114 @@ export function buildMapPatch(
     if (!sameList(current[k], next)) section[k] = next;
   }
   return Object.keys(section).length ? { mapEnvironment: section } : null;
+}
+
+// ── Gameplay Configuration ───────────────────────────────────────────────
+
+export interface GameplayConfigurationForm {
+  loop: string;
+  winCondition: string;
+  loseCondition: string;
+  progressionModel: string;
+  difficultyScaling: string;
+  interactionSystems: string;
+  economyOrScoring: string;
+}
+
+export function gameplayConfigurationFormFromProject(
+  project: Project,
+): GameplayConfigurationForm {
+  const g = project.gameplayConfiguration ?? {};
+  return {
+    loop: g.loop ?? "",
+    winCondition: g.winCondition ?? "",
+    loseCondition: g.loseCondition ?? "",
+    progressionModel: g.progressionModel ?? "",
+    difficultyScaling: g.difficultyScaling ?? "",
+    interactionSystems: joinLines(g.interactionSystems),
+    economyOrScoring: g.economyOrScoring ?? "",
+  };
+}
+
+export function validateGameplayConfigurationForm(
+  form: GameplayConfigurationForm,
+): FormErrors<GameplayConfigurationForm> {
+  const e: Record<string, string> = {};
+  checkText(
+    e,
+    "loop",
+    "Gameplay loop",
+    form.loop,
+    DESIGN_LIMITS.gameplayLoop,
+  );
+  checkText(
+    e,
+    "winCondition",
+    "Win condition",
+    form.winCondition,
+    DESIGN_LIMITS.winCondition,
+  );
+  checkText(
+    e,
+    "loseCondition",
+    "Lose condition",
+    form.loseCondition,
+    DESIGN_LIMITS.loseCondition,
+  );
+  checkText(
+    e,
+    "progressionModel",
+    "Progression model",
+    form.progressionModel,
+    DESIGN_LIMITS.progressionModel,
+  );
+  checkText(
+    e,
+    "difficultyScaling",
+    "Difficulty scaling",
+    form.difficultyScaling,
+    DESIGN_LIMITS.difficultyScaling,
+  );
+  checkList(
+    e,
+    "interactionSystems",
+    "Interaction systems",
+    form.interactionSystems,
+    DESIGN_LIMITS.interactionSystems,
+  );
+  checkText(
+    e,
+    "economyOrScoring",
+    "Economy or scoring",
+    form.economyOrScoring,
+    DESIGN_LIMITS.economyOrScoring,
+  );
+  return e as FormErrors<GameplayConfigurationForm>;
+}
+
+export function buildGameplayConfigurationPatch(
+  project: Project,
+  form: GameplayConfigurationForm,
+): Partial<Project> | null {
+  const current = project.gameplayConfiguration ?? {};
+  const section: GameplayConfigurationConfig = {};
+  for (const key of [
+    "loop",
+    "winCondition",
+    "loseCondition",
+    "progressionModel",
+    "difficultyScaling",
+    "economyOrScoring",
+  ] as const) {
+    if (form[key].trim() !== (current[key] ?? "")) {
+      section[key] = form[key].trim();
+    }
+  }
+  const interactions = parseLines(form.interactionSystems);
+  if (!sameList(current.interactionSystems, interactions)) {
+    section.interactionSystems = interactions;
+  }
+  return Object.keys(section).length
+    ? { gameplayConfiguration: section }
+    : null;
 }

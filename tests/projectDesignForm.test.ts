@@ -3,6 +3,9 @@ import { test } from "node:test";
 import {
   buildConceptPatch,
   buildMapPatch,
+  gameplayConfigurationFormFromProject,
+  buildGameplayConfigurationPatch,
+  validateGameplayConfigurationForm,
   conceptFormFromProject,
   mapFormFromProject,
   readDesignSection,
@@ -34,6 +37,15 @@ test("legacy project (no sections) loads empty forms", () => {
   assert.equal(c.coreMechanics, "");
   assert.equal(c.description, "Idea");
   assert.equal(mapFormFromProject(base).worldTheme, "");
+  assert.deepEqual(gameplayConfigurationFormFromProject(base), {
+    loop: "",
+    winCondition: "",
+    loseCondition: "",
+    progressionModel: "",
+    difficultyScaling: "",
+    interactionSystems: "",
+    economyOrScoring: "",
+  });
 });
 
 test("loads stored sections into line-based forms", () => {
@@ -186,5 +198,61 @@ test("reconcile keeps a user-edited field and returns same object if unchanged",
   assert.equal(
     reconcileForm(baseline, baseline, mapFormFromProject(opened)),
     baseline,
+  );
+});
+
+test("gameplay configuration loads persisted fields and builds partial patches", () => {
+  const p = {
+    ...base,
+    gameplayConfiguration: {
+      loop: "Explore",
+      interactionSystems: ["Crafting", "Trading"],
+    },
+  };
+  const form = gameplayConfigurationFormFromProject(p);
+  assert.equal(form.loop, "Explore");
+  assert.equal(form.interactionSystems, "Crafting\nTrading");
+  assert.equal(buildGameplayConfigurationPatch(p, form), null);
+  assert.deepEqual(
+    buildGameplayConfigurationPatch(p, {
+      ...form,
+      winCondition: "Reach the summit",
+    }),
+    { gameplayConfiguration: { winCondition: "Reach the summit" } },
+  );
+});
+
+test("gameplay configuration clears fields and validates backend limits", () => {
+  const p = {
+    ...base,
+    gameplayConfiguration: {
+      winCondition: "Win",
+      interactionSystems: ["Crafting"],
+    },
+  };
+  const form = {
+    ...gameplayConfigurationFormFromProject(p),
+    winCondition: "",
+    interactionSystems: "",
+  };
+  assert.deepEqual(buildGameplayConfigurationPatch(p, form), {
+    gameplayConfiguration: { winCondition: "", interactionSystems: [] },
+  });
+  const errors = validateGameplayConfigurationForm({
+    ...gameplayConfigurationFormFromProject(base),
+    loop: "x".repeat(1501),
+    winCondition: "x".repeat(501),
+    interactionSystems: new Array(21).fill("x").join("\n"),
+  });
+  assert.ok(errors.loop && errors.winCondition && errors.interactionSystems);
+});
+
+test("gameplay configuration reader ignores malformed backend values", () => {
+  assert.deepEqual(
+    readDesignSection(
+      { loop: "Explore", interactionSystems: ["Crafting", 4] },
+      "gameplayConfiguration",
+    ),
+    { loop: "Explore", interactionSystems: ["Crafting"] },
   );
 });
