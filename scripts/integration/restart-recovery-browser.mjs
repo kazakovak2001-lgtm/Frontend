@@ -219,9 +219,7 @@ try {
   await page.getByRole("button", { name: "Save Game Concept" }).click();
   await page.getByText("Saved.", { exact: true }).waitFor();
 
-  await page
-    .getByRole("tab", { name: "Map & Environment" })
-    .click();
+  await page.getByRole("tab", { name: "Map & Environment" }).click();
   await page.getByLabel("World theme").fill("Sky archipelago");
   await page.getByLabel("Environment type").fill("Floating islands");
   await page
@@ -239,12 +237,9 @@ try {
   await page.getByRole("button", { name: "Save Map & Environment" }).click();
   await page.getByText("Saved.", { exact: true }).waitFor();
 
-  const designBefore = await api(
-    `/projects/${encodeURIComponent(projectId)}`,
-  );
+  const designBefore = await api(`/projects/${encodeURIComponent(projectId)}`);
   if (
-    designBefore.gameConcept?.vision !==
-      "A cooperative sky-island adventure" ||
+    designBefore.gameConcept?.vision !== "A cooperative sky-island adventure" ||
     designBefore.gameConcept?.coreMechanics?.join("|") !==
       "glide|craft|team defense" ||
     designBefore.mapEnvironment?.worldTheme !== "Sky archipelago" ||
@@ -301,12 +296,9 @@ try {
     );
   }
 
-  const designAfter = await api(
-    `/projects/${encodeURIComponent(projectId)}`,
-  );
+  const designAfter = await api(`/projects/${encodeURIComponent(projectId)}`);
   if (
-    designAfter.gameConcept?.vision !==
-      "A cooperative sky-island adventure" ||
+    designAfter.gameConcept?.vision !== "A cooperative sky-island adventure" ||
     designAfter.gameConcept?.coreMechanics?.join("|") !==
       "glide|craft|team defense" ||
     designAfter.mapEnvironment?.worldTheme !== "Sky archipelago" ||
@@ -335,9 +327,7 @@ try {
     throw new Error("Game Concept form did not restore its saved values");
   }
 
-  await page
-    .getByRole("tab", { name: "Map & Environment" })
-    .click();
+  await page.getByRole("tab", { name: "Map & Environment" }).click();
   if (
     (await page.getByLabel("World theme").inputValue()) !== "Sky archipelago" ||
     (await page.getByLabel("Main locations (one per line)").inputValue()) !==
