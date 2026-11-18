@@ -217,7 +217,10 @@ try {
     .getByLabel("Important design constraints (one per line)")
     .fill("Mobile-first traversal");
   await page.getByRole("button", { name: "Save Game Concept" }).click();
-  await page.getByText("Saved.", { exact: true }).waitFor();
+  await page
+    .locator("#game-creation-panel-concept")
+    .getByText("Saved.", { exact: true })
+    .waitFor();
 
   await page.getByRole("tab", { name: "Map & Environment" }).click();
   await page.getByLabel("World theme").fill("Sky archipelago");
@@ -235,7 +238,10 @@ try {
     .getByLabel("Gameplay and environmental constraints (one per line)")
     .fill("Readable navigation on mobile");
   await page.getByRole("button", { name: "Save Map & Environment" }).click();
-  await page.getByText("Saved.", { exact: true }).waitFor();
+  await page
+    .locator("#game-creation-panel-map")
+    .getByText("Saved.", { exact: true })
+    .waitFor();
 
   const designBefore = await api(`/projects/${encodeURIComponent(projectId)}`);
   if (
