@@ -455,14 +455,23 @@ async function main() {
         json("PUT", initial),
       );
       assert(
-        saved.gameConcept?.vision === initial.gameConcept.vision &&
-          saved.gameConcept?.coreMechanics?.join("|") ===
-            initial.gameConcept.coreMechanics.join("|") &&
-          saved.mapEnvironment?.worldTheme ===
-            initial.mapEnvironment.worldTheme &&
-          saved.mapEnvironment?.mainLocations?.join("|") ===
-            initial.mapEnvironment.mainLocations.join("|"),
-        "Project update did not return both design sections",
+        saved.gameConcept?.vision === initial.gameConcept.vision,
+        "Game Concept vision was not saved",
+      );
+      assert(
+        saved.gameConcept?.coreMechanics?.join("|") ===
+          initial.gameConcept.coreMechanics.join("|"),
+        "Game Concept mechanics were not saved",
+      );
+      assert(
+        saved.mapEnvironment?.worldTheme ===
+          initial.mapEnvironment.worldTheme,
+        "Map world theme was not saved",
+      );
+      assert(
+        saved.mapEnvironment?.mainLocations?.join("|") ===
+          initial.mapEnvironment.mainLocations.join("|"),
+        "Map locations were not saved",
       );
 
       // Partial edits must preserve fields the user did not change.
@@ -475,28 +484,48 @@ async function main() {
       );
       assert(
         partial.gameConcept?.vision ===
-          "A persistent cooperative sky adventure" &&
-          partial.gameConcept?.gameplayLoop ===
-            initial.gameConcept.gameplayLoop &&
-          partial.mapEnvironment?.atmosphere ===
-            "Storm-lit and mysterious" &&
-          partial.mapEnvironment?.worldTheme ===
-            initial.mapEnvironment.worldTheme &&
-          partial.mapEnvironment?.mainLocations?.join("|") ===
-            initial.mapEnvironment.mainLocations.join("|"),
-        "Partial design update overwrote untouched fields",
+          "A persistent cooperative sky adventure",
+        "Partial Game Concept edit was not saved",
+      );
+      assert(
+        partial.gameConcept?.gameplayLoop ===
+          initial.gameConcept.gameplayLoop,
+        "Partial Game Concept edit erased the gameplay loop",
+      );
+      assert(
+        partial.mapEnvironment?.atmosphere === "Storm-lit and mysterious",
+        "Partial Map & Environment edit was not saved",
+      );
+      assert(
+        partial.mapEnvironment?.worldTheme ===
+          initial.mapEnvironment.worldTheme,
+        "Partial Map & Environment edit erased the world theme",
+      );
+      assert(
+        partial.mapEnvironment?.mainLocations?.join("|") ===
+          initial.mapEnvironment.mainLocations.join("|"),
+        "Partial Map & Environment edit erased the locations",
       );
 
       const reloaded = await request(`/projects/${project.id}`);
       assert(
-        reloaded.gameConcept?.vision === partial.gameConcept.vision &&
-          reloaded.gameConcept?.gameplayLoop ===
-            initial.gameConcept.gameplayLoop &&
-          reloaded.mapEnvironment?.atmosphere ===
-            partial.mapEnvironment.atmosphere &&
-          reloaded.mapEnvironment?.worldTheme ===
-            initial.mapEnvironment.worldTheme,
-        "Design inputs did not survive a fresh project read",
+        reloaded.gameConcept?.vision === partial.gameConcept.vision,
+        "Game Concept vision did not survive a fresh project read",
+      );
+      assert(
+        reloaded.gameConcept?.gameplayLoop ===
+          initial.gameConcept.gameplayLoop,
+        "Game Concept gameplay loop did not survive a fresh project read",
+      );
+      assert(
+        reloaded.mapEnvironment?.atmosphere ===
+          partial.mapEnvironment.atmosphere,
+        "Map atmosphere did not survive a fresh project read",
+      );
+      assert(
+        reloaded.mapEnvironment?.worldTheme ===
+          initial.mapEnvironment.worldTheme,
+        "Map world theme did not survive a fresh project read",
       );
     },
   );
