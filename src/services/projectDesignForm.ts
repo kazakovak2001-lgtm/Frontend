@@ -37,10 +37,7 @@ export const DESIGN_LIMITS = {
   economyOrScoring: 500,
 } as const;
 
-export type DesignSection =
-  | "gameConcept"
-  | "mapEnvironment"
-  | "gameplayConfiguration";
+export type DesignSection = "gameConcept" | "mapEnvironment" | "gameplayConfiguration";
 
 const TEXT_KEYS: Record<DesignSection, readonly string[]> = {
   gameConcept: ["vision", "gameplayLoop", "playerExperience"],
@@ -407,13 +404,7 @@ export function validateGameplayConfigurationForm(
   form: GameplayConfigurationForm,
 ): FormErrors<GameplayConfigurationForm> {
   const e: Record<string, string> = {};
-  checkText(
-    e,
-    "loop",
-    "Gameplay loop",
-    form.loop,
-    DESIGN_LIMITS.gameplayLoop,
-  );
+  checkText(e, "loop", "Gameplay loop", form.loop, DESIGN_LIMITS.gameplayLoop);
   checkText(
     e,
     "winCondition",
