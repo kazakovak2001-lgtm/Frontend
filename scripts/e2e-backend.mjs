@@ -430,6 +430,7 @@ async function main() {
     assert(opened.id === project.id, "Project detail returned another project");
   });
 
+  // prettier-ignore
   await check(
     "persist and reload Game Concept and Map & Environment",
     async () => {
