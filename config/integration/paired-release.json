@@ -11,7 +11,7 @@
     "releaseBranch": "release/cutover-1e-candidate",
     "runtimeSha": "669cc1a361241146f22ef3d7ad343aebe29c3034",
     "candidateBranch": "release/cutover-1e-candidate",
-    "candidateSha": "669cc1a361241146f22ef3d7ad343aebe29c3034"
+    "candidateSha": "1c8976742e39099ab569fc273a200aca5f5723ba"
   },
   "contract": {
     "backendPaths": [
