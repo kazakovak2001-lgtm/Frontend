@@ -9,7 +9,7 @@ All browser calls pass through `src/services/backendApi.ts`. It normalizes API e
 ## Current exact runtime pair
 
 - Frontend runtime baseline: `53eddd8b52ced75a6cd65328ab7e9eec146fd4a7`
-- Backend runtime baseline: `1c8976742e39099ab569fc273a200aca5f5723ba` (`release/cutover-1e-candidate`)
+- Backend runtime baseline: `db2b47d26c8470cce47686949026b3f238429bef` (`release/cutover-1e-candidate`)
 - Single pin authority: `config/integration/paired-release.json`
 
 Production, clean-clone, and PostgreSQL restart workflows resolve the backend
@@ -55,21 +55,24 @@ Versioned and transport-level endpoints are deliberately not duplicated as separ
 
 ## Game creation inputs (Define stage)
 
-The Define stage hosts two separate input windows, selected with
-`?stage=define&window=concept` (default) or `?stage=define&window=map`:
+The Define stage hosts three separate input windows, selected with
+`?stage=define&window=concept` (default), `?stage=define&window=map` or
+`?stage=define&window=gameplay`:
 
-| Window            | Persisted fields                                                                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Game Concept      | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`) |
-| Map & Environment | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                          |
+| Window                 | Persisted fields                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Game Concept           | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`) |
+| Map & Environment      | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                          |
+| Gameplay Configuration | `gameplayConfiguration` (`loop`, `winCondition`, `loseCondition`, `progressionModel`, `difficultyScaling`, `interactionSystems`, `economyOrScoring`)                      |
 
-- Both windows save through `PUT /api/projects/:id` (`backendApi.projects.update`) and never start generation. Only changed fields are sent; list fields are one item per line.
+- All windows save through `PUT /api/projects/:id` (`backendApi.projects.update`) and never start generation. Only changed fields are sent; list fields are one item per line.
 - A section is a partial update on the backend. A blank field or an empty list clears that field; clearing every field of a section removes it from the next generation. The backend reports a section that is empty or never stated as `null`, which the client reads as "not set".
-- Types mirror the backend contract (`GameConceptConfig`, `MapEnvironmentConfig` in `src/types/index.ts`); limits mirror `server/src/types/projectDesignInputs.ts` (backend PR #312) and the backend remains authoritative (its `400` message is shown as-is).
-- Unsaved input in either window is kept when switching windows or when a save fails.
+- Types mirror the backend contract (`GameConceptConfig`, `MapEnvironmentConfig`, `GameplayConfigurationConfig` in `src/types/index.ts`); limits mirror `server/src/types/projectDesignInputs.ts` (Game Concept and Map & Environment from backend PR #312; Gameplay Configuration from backend PR #316) and the backend remains authoritative (its `400` message is shown as-is).
+- Unsaved input in every window is kept when switching windows or when a save fails.
 - When the project refreshes while a window is open (for example after generation), fields the user has not edited adopt the refreshed values and fields the user has edited keep the user's input; a save sends only the user's changes.
-- **Backend dependency:** persisting `gameConcept` and `mapEnvironment` requires the backend implementation from `RobloxAIStudio2` PR #312 (`persist game creation design inputs`). An older backend ignores these fields and does not persist them, so the windows load empty after a reload. Compatibility with the PR #312 backend is not verified in an integration environment; the two PRs have been tested separately only.
-- Not yet connected: Gameplay Configuration and Monetization Configuration windows.
+- Gameplay Configuration is persisted as a partial section using the same merge, clearing, response and validation rules. Its stated values are copied into the blueprint as `gameplay_configuration` and included in prompt-ready design context; generated gameplay mechanics remain a separate output.
+- **Backend dependency:** the new `gameplayConfiguration` section requires the backend release containing PR #316 (commit `db2b47d26c8470cce47686949026b3f238429bef`). Older backend versions ignore the field and do not persist it.
+- Not yet connected: Monetization Configuration.
 
 ## Studio verification contract
 

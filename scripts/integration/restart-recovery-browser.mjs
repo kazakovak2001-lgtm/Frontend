@@ -243,6 +243,32 @@ try {
     .getByText("Saved.", { exact: true })
     .waitFor();
 
+  await page.getByRole("tab", { name: "Gameplay Configuration" }).click();
+  await page
+    .getByLabel("Gameplay loop", { exact: true })
+    .fill("Explore, collect, craft, defend");
+  await page.getByLabel("Win condition").fill("Complete the final sky trial");
+  await page.getByLabel("Lose condition").fill("Lose all shared lives");
+  await page
+    .getByLabel("Player progression model")
+    .fill("Unlock islands by completing trials");
+  await page
+    .getByLabel("Difficulty scaling")
+    .fill("Increase challenge per island");
+  await page
+    .getByLabel("Interaction systems (one per line)")
+    .fill("Crafting\nTrading");
+  await page
+    .getByLabel("Economy or scoring rules")
+    .fill("Earn stars for discoveries");
+  await page
+    .getByRole("button", { name: "Save Gameplay Configuration" })
+    .click();
+  await page
+    .locator("#game-creation-panel-gameplay")
+    .getByText("Saved.", { exact: true })
+    .waitFor();
+
   const designBefore = await api(`/projects/${encodeURIComponent(projectId)}`);
   if (
     designBefore.gameConcept?.vision !== "A cooperative sky-island adventure" ||
@@ -257,6 +283,27 @@ try {
         gameConcept: designBefore.gameConcept,
         mapEnvironment: designBefore.mapEnvironment,
       })}`,
+    );
+  }
+
+  if (
+    designBefore.gameplayConfiguration?.loop !==
+      "Explore, collect, craft, defend" ||
+    designBefore.gameplayConfiguration?.winCondition !==
+      "Complete the final sky trial" ||
+    designBefore.gameplayConfiguration?.loseCondition !==
+      "Lose all shared lives" ||
+    designBefore.gameplayConfiguration?.progressionModel !==
+      "Unlock islands by completing trials" ||
+    designBefore.gameplayConfiguration?.difficultyScaling !==
+      "Increase challenge per island" ||
+    designBefore.gameplayConfiguration?.interactionSystems?.join("|") !==
+      "Crafting|Trading" ||
+    designBefore.gameplayConfiguration?.economyOrScoring !==
+      "Earn stars for discoveries"
+  ) {
+    throw new Error(
+      `Gameplay Configuration was not persisted: ${JSON.stringify(designBefore.gameplayConfiguration)}`,
     );
   }
 
@@ -316,6 +363,50 @@ try {
         gameConcept: designAfter.gameConcept,
         mapEnvironment: designAfter.mapEnvironment,
       })}`,
+    );
+  }
+
+  if (
+    designAfter.gameplayConfiguration?.loop !==
+      "Explore, collect, craft, defend" ||
+    designAfter.gameplayConfiguration?.winCondition !==
+      "Complete the final sky trial" ||
+    designAfter.gameplayConfiguration?.loseCondition !==
+      "Lose all shared lives" ||
+    designAfter.gameplayConfiguration?.progressionModel !==
+      "Unlock islands by completing trials" ||
+    designAfter.gameplayConfiguration?.difficultyScaling !==
+      "Increase challenge per island" ||
+    designAfter.gameplayConfiguration?.interactionSystems?.join("|") !==
+      "Crafting|Trading" ||
+    designAfter.gameplayConfiguration?.economyOrScoring !==
+      "Earn stars for discoveries"
+  ) {
+    throw new Error(
+      `Gameplay Configuration changed after restart: ${JSON.stringify(designAfter.gameplayConfiguration)}`,
+    );
+  }
+
+  await page.getByRole("tab", { name: "Gameplay Configuration" }).click();
+  if (
+    (await page.getByLabel("Gameplay loop", { exact: true }).inputValue()) !==
+      "Explore, collect, craft, defend" ||
+    (await page.getByLabel("Win condition").inputValue()) !==
+      "Complete the final sky trial" ||
+    (await page.getByLabel("Lose condition").inputValue()) !==
+      "Lose all shared lives" ||
+    (await page.getByLabel("Player progression model").inputValue()) !==
+      "Unlock islands by completing trials" ||
+    (await page.getByLabel("Difficulty scaling").inputValue()) !==
+      "Increase challenge per island" ||
+    (await page
+      .getByLabel("Interaction systems (one per line)")
+      .inputValue()) !== "Crafting\nTrading" ||
+    (await page.getByLabel("Economy or scoring rules").inputValue()) !==
+      "Earn stars for discoveries"
+  ) {
+    throw new Error(
+      "Gameplay Configuration form did not restore its saved values",
     );
   }
 

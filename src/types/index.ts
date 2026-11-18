@@ -34,6 +34,17 @@ export interface MapEnvironmentConfig {
   constraints?: string[];
 }
 
+/** Mirrors backend `GameplayConfigurationConfig`. */
+export interface GameplayConfigurationConfig {
+  loop?: string;
+  winCondition?: string;
+  loseCondition?: string;
+  progressionModel?: string;
+  difficultyScaling?: string;
+  interactionSystems?: string[];
+  economyOrScoring?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -52,6 +63,7 @@ export interface Project {
   /** Absent when the user has stated nothing (backend returns null). */
   gameConcept?: GameConceptConfig;
   mapEnvironment?: MapEnvironmentConfig;
+  gameplayConfiguration?: GameplayConfigurationConfig;
 }
 
 export interface User {

@@ -21,6 +21,10 @@ import {
   reconcileForm,
   validateConceptForm,
   validateMapForm,
+  gameplayConfigurationFormFromProject,
+  buildGameplayConfigurationPatch,
+  validateGameplayConfigurationForm,
+  type GameplayConfigurationForm,
   type FormErrors,
   type GameConceptForm,
   type MapEnvironmentForm,
@@ -38,7 +42,7 @@ type SaveState =
   | { status: "error"; message: string };
 
 /**
- * Two separate input windows over the existing project record. Both stay
+ * Three separate input windows over the existing project record. All stay
  * mounted so unsaved input survives switching windows; saving only persists
  * the configuration (PUT /projects/:id) and never starts generation.
  */
@@ -103,6 +107,15 @@ export function GameCreationWindows({
         className="mt-5"
       >
         <MapEnvironmentWindow project={project} onSave={onSave} />
+      </div>
+      <div
+        role="tabpanel"
+        id="game-creation-panel-gameplay"
+        aria-labelledby="game-creation-tab-gameplay"
+        hidden={activeWindow !== "gameplay"}
+        className="mt-5"
+      >
+        <GameplayConfigurationWindow project={project} onSave={onSave} />
       </div>
     </Card>
   );
@@ -420,6 +433,132 @@ export function MapEnvironmentWindow({
           rows={3}
           value={form.constraints}
           onChange={(e) => set("constraints", e.target.value)}
+        />
+      </Field>
+    </WindowForm>
+  );
+}
+
+export function GameplayConfigurationWindow({
+  project,
+  onSave,
+}: {
+  project: Project;
+  onSave: (patch: Partial<Project>) => Promise<void>;
+}) {
+  const [form, setForm] = useProjectForm(
+    project,
+    gameplayConfigurationFormFromProject,
+  );
+  const [errors, setErrors] = useState<FormErrors<GameplayConfigurationForm>>(
+    {},
+  );
+  const [state, save, resetState] = useSaveFlow(onSave);
+
+  useEffect(() => {
+    setErrors({});
+    resetState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
+
+  const set = <K extends keyof GameplayConfigurationForm>(
+    key: K,
+    value: GameplayConfigurationForm[K],
+  ) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (state.status !== "saving") resetState();
+  };
+
+  const submit = async () => {
+    const found = validateGameplayConfigurationForm(form);
+    setErrors(found);
+    if (Object.keys(found).length) return;
+    const patch = buildGameplayConfigurationPatch(project, form);
+    if (!patch) return;
+    await save(patch);
+  };
+
+  const dirty = buildGameplayConfigurationPatch(project, form) !== null;
+
+  return (
+    <WindowForm
+      title="Gameplay Configuration"
+      state={state}
+      dirty={dirty}
+      onSubmit={() => void submit()}
+    >
+      <Field id="gp-loop" label="Gameplay loop" error={errors.loop}>
+        <Textarea
+          id="gp-loop"
+          rows={3}
+          value={form.loop}
+          onChange={(e) => set("loop", e.target.value)}
+        />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="gp-win" label="Win condition" error={errors.winCondition}>
+          <Textarea
+            id="gp-win"
+            rows={3}
+            value={form.winCondition}
+            onChange={(e) => set("winCondition", e.target.value)}
+          />
+        </Field>
+        <Field id="gp-lose" label="Lose condition" error={errors.loseCondition}>
+          <Textarea
+            id="gp-lose"
+            rows={3}
+            value={form.loseCondition}
+            onChange={(e) => set("loseCondition", e.target.value)}
+          />
+        </Field>
+      </div>
+      <Field
+        id="gp-progression"
+        label="Player progression model"
+        error={errors.progressionModel}
+      >
+        <Textarea
+          id="gp-progression"
+          rows={3}
+          value={form.progressionModel}
+          onChange={(e) => set("progressionModel", e.target.value)}
+        />
+      </Field>
+      <Field
+        id="gp-difficulty"
+        label="Difficulty scaling"
+        error={errors.difficultyScaling}
+      >
+        <Textarea
+          id="gp-difficulty"
+          rows={2}
+          value={form.difficultyScaling}
+          onChange={(e) => set("difficultyScaling", e.target.value)}
+        />
+      </Field>
+      <Field
+        id="gp-interactions"
+        label="Interaction systems (one per line)"
+        error={errors.interactionSystems}
+      >
+        <Textarea
+          id="gp-interactions"
+          rows={3}
+          value={form.interactionSystems}
+          onChange={(e) => set("interactionSystems", e.target.value)}
+        />
+      </Field>
+      <Field
+        id="gp-economy"
+        label="Economy or scoring rules"
+        error={errors.economyOrScoring}
+      >
+        <Textarea
+          id="gp-economy"
+          rows={3}
+          value={form.economyOrScoring}
+          onChange={(e) => set("economyOrScoring", e.target.value)}
         />
       </Field>
     </WindowForm>

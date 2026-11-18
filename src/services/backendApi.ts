@@ -208,6 +208,10 @@ function toFrontendProject(raw: JsonRecord): Project {
     coverUrl: typeof raw.coverUrl === "string" ? raw.coverUrl : undefined,
     gameConcept: readDesignSection(raw.gameConcept, "gameConcept"),
     mapEnvironment: readDesignSection(raw.mapEnvironment, "mapEnvironment"),
+    gameplayConfiguration: readDesignSection(
+      raw.gameplayConfiguration,
+      "gameplayConfiguration",
+    ),
   };
 }
 
