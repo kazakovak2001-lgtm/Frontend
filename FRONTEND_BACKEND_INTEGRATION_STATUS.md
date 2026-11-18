@@ -119,7 +119,7 @@ npm run build
 
 The native suite contains 12 checks, including verified, pending, failed,
 malformed and disconnected Studio responses plus Workspace blocker/next-action
-behavior. The integration suite contains 40 checks. It covers authenticated
+behavior. The integration suite contains 41 checks. It covers authenticated
 REST and Socket.IO behavior, all user-facing module groups, full project
 lifecycle, persistent chat, guarded Studio sync, explicit disconnected
 verification state, cross-user project isolation, export, settings, deletion,
