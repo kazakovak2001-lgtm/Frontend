@@ -59,10 +59,10 @@ The Define stage hosts three separate input windows, selected with
 `?stage=define&window=concept` (default), `?stage=define&window=map` or
 `?stage=define&window=gameplay`:
 
-| Window                  | Persisted fields                                                                                                                                                             |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Game Concept            | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`) |
-| Map & Environment       | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                          |
+| Window                 | Persisted fields                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Game Concept           | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`) |
+| Map & Environment      | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                          |
 | Gameplay Configuration | `gameplayConfiguration` (`loop`, `winCondition`, `loseCondition`, `progressionModel`, `difficultyScaling`, `interactionSystems`, `economyOrScoring`)                      |
 
 - All windows save through `PUT /api/projects/:id` (`backendApi.projects.update`) and never start generation. Only changed fields are sent; list fields are one item per line.
