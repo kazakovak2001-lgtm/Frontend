@@ -312,7 +312,7 @@ jobs:
           E2E_API_URL: ${{ env.INT201_API_URL }}
           E2E_FRONTEND_ORIGIN: ${{ env.INT201_FRONTEND_ORIGIN }}
         run: node scripts/integration/browser-runtime-smoke.mjs > artifacts/int-201/browser-runtime.json
-      - name: Run protected 40-check contract
+      - name: Run protected 41-check contract
         env:
           E2E_API_URL: ${{ env.INT201_API_URL }}
           E2E_SOCKET_URL: ${{ env.INT201_SOCKET_URL }}
