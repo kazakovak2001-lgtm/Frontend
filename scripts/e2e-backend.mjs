@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { io } from "socket.io-client";
 
-const EXPECTED_CHECK_COUNT = 40;
+const EXPECTED_CHECK_COUNT = 41;
 const apiBase = (
   process.env.E2E_API_URL ?? "http://127.0.0.1:5000/api"
 ).replace(/\/$/, "");
@@ -1263,7 +1263,7 @@ export async function run() {
 // Only run the suite when this file is executed directly (`node
 // e2e-backend.mjs`, or the RBAC-generated copy spawned the same way).
 // Importing it — as the regression tests for the exports above do — must
-// not trigger a live 40-check run against a backend that may not exist.
+// not trigger a live 41-check run against a backend that may not exist.
 const isDirectExecution =
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(process.argv[1]).href;
