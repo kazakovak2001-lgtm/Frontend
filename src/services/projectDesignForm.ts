@@ -37,7 +37,8 @@ export const DESIGN_LIMITS = {
   economyOrScoring: 500,
 } as const;
 
-export type DesignSection = "gameConcept" | "mapEnvironment" | "gameplayConfiguration";
+export type DesignSection =
+  "gameConcept" | "mapEnvironment" | "gameplayConfiguration";
 
 const TEXT_KEYS: Record<DesignSection, readonly string[]> = {
   gameConcept: ["vision", "gameplayLoop", "playerExperience"],
