@@ -61,9 +61,9 @@ The Define stage hosts three separate input windows, selected with
 
 | Window                  | Persisted fields                                                                                                                                                             |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Game Concept            | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`)     |
-| Map & Environment       | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                             |
-| Gameplay Configuration  | `gameplayConfiguration` (`loop`, `winCondition`, `loseCondition`, `progressionModel`, `difficultyScaling`, `interactionSystems`, `economyOrScoring`)                         |
+| Game Concept            | `description`, `genre`, `targetAudience` (existing project fields) and `gameConcept` (`vision`, `gameplayLoop`, `coreMechanics`, `playerExperience`, `designConstraints`) |
+| Map & Environment       | `mapEnvironment` (`worldTheme`, `environmentType`, `mapStructure`, `mainLocations`, `atmosphere`, `constraints`)                                                          |
+| Gameplay Configuration | `gameplayConfiguration` (`loop`, `winCondition`, `loseCondition`, `progressionModel`, `difficultyScaling`, `interactionSystems`, `economyOrScoring`)                      |
 
 - All windows save through `PUT /api/projects/:id` (`backendApi.projects.update`) and never start generation. Only changed fields are sent; list fields are one item per line.
 - A section is a partial update on the backend. A blank field or an empty list clears that field; clearing every field of a section removes it from the next generation. The backend reports a section that is empty or never stated as `null`, which the client reads as "not set".
